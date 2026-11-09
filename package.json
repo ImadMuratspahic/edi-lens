@@ -1,0 +1,309 @@
+{
+  "name": "edi-lens",
+  "displayName": "EDI Lens",
+  "description": "Read, validate, reformat and compare UN/EDIFACT, ANSI X12 and HL7 v2 messages. Works offline.",
+  "version": "0.1.0",
+  "publisher": "ImadMuratspahic",
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "icon": "media/icon.png",
+  "pricing": "Free",
+  "homepage": "https://imadmuratspahic-dev.carrd.co",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ImadMuratspahic/edi-lens"
+  },
+  "bugs": {
+    "url": "https://github.com/ImadMuratspahic/edi-lens/issues"
+  },
+  "galleryBanner": {
+    "color": "#17324d",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.82.0"
+  },
+  "categories": [
+    "Formatters",
+    "Linters",
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "edi",
+    "edifact",
+    "x12",
+    "hl7",
+    "hl7 v2",
+    "segment",
+    "validator",
+    "formatter",
+    "diff",
+    "healthcare",
+    "supply chain",
+    "integration"
+  ],
+  "main": "./src/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": {
+      "supported": "limited",
+      "description": "Validate Workspace and Batch Pretty Print Folder need a folder on a real file system. All single-file features work in virtual workspaces."
+    }
+  },
+  "activationEvents": [
+    "onLanguage:edifact",
+    "onLanguage:x12",
+    "onLanguage:hl7",
+    "onView:ediLens.outline",
+    "onCommand:ediLens.detectFormat",
+    "onCommand:ediLens.prettyPrint",
+    "onCommand:ediLens.minify",
+    "onCommand:ediLens.goToSegment",
+    "onCommand:ediLens.copyPath",
+    "onCommand:ediLens.jumpToTrailer",
+    "onCommand:ediLens.validateFile",
+    "onCommand:ediLens.unloadDictionary",
+    "onCommand:ediLens.clearWorkspaceResults",
+    "onCommand:ediLens.buyPro",
+    "onCommand:ediLens.enterKey",
+    "onCommand:ediLens.licenceStatus",
+    "onCommand:ediLens.removeLicence",
+    "onCommand:ediLens.compare",
+    "onCommand:ediLens.exportJson",
+    "onCommand:ediLens.exportCsv",
+    "onCommand:ediLens.exportXml",
+    "onCommand:ediLens.validateWorkspace",
+    "onCommand:ediLens.loadDictionary",
+    "onCommand:ediLens.batchPrettyPrint"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "vscode:prepublish": "node -e \"const c=require('./src/licence/config');c.assertShippable(require('./package.json'))\"",
+    "package": "npx --yes @vscode/vsce package"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "edifact",
+        "aliases": ["UN/EDIFACT", "EDIFACT", "edifact"],
+        "extensions": [".edi", ".edifact", ".edf"],
+        "firstLine": "^\\s*(UNA[^\\r\\n]{6}|UN[BH]\\+)",
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "x12",
+        "aliases": ["ANSI X12", "X12", "x12"],
+        "extensions": [".x12", ".x12edi"],
+        "firstLine": "^\\s*ISA[^\\w\\s]",
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "hl7",
+        "aliases": ["HL7 v2", "HL7", "hl7"],
+        "extensions": [".hl7"],
+        "firstLine": "^\\s*MSH\\|",
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "edifact",
+        "scopeName": "source.edifact",
+        "path": "./syntaxes/edifact.tmLanguage.json"
+      },
+      {
+        "language": "x12",
+        "scopeName": "source.x12",
+        "path": "./syntaxes/x12.tmLanguage.json"
+      },
+      {
+        "language": "hl7",
+        "scopeName": "source.hl7",
+        "path": "./syntaxes/hl7.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      { "command": "ediLens.detectFormat", "title": "EDI Lens: Detect Format" },
+      { "command": "ediLens.prettyPrint", "title": "EDI Lens: Pretty Print" },
+      { "command": "ediLens.minify", "title": "EDI Lens: Minify" },
+      { "command": "ediLens.goToSegment", "title": "EDI Lens: Go to Segment" },
+      { "command": "ediLens.copyPath", "title": "EDI Lens: Copy Path At Cursor" },
+      { "command": "ediLens.jumpToTrailer", "title": "EDI Lens: Jump To Matching Trailer" },
+      { "command": "ediLens.validateFile", "title": "EDI Lens: Validate Current File" },
+      { "command": "ediLens.unloadDictionary", "title": "EDI Lens: Unload Dictionary" },
+      { "command": "ediLens.clearWorkspaceResults", "title": "EDI Lens: Clear Workspace Validation Results" },
+      { "command": "ediLens.refreshTree", "title": "EDI Lens: Refresh Outline", "icon": "$(refresh)" },
+      { "command": "ediLens.copyTreePath", "title": "EDI Lens: Copy Path" },
+      { "command": "ediLens.revealRange", "title": "EDI Lens: Reveal In Editor" },
+      { "command": "ediLens.buyPro", "title": "EDI Lens: Buy Pro" },
+      { "command": "ediLens.enterKey", "title": "EDI Lens: Enter Licence Key" },
+      { "command": "ediLens.licenceStatus", "title": "EDI Lens: Show Licence Status" },
+      { "command": "ediLens.removeLicence", "title": "EDI Lens: Remove Licence From This Machine" },
+      { "command": "ediLens.compare", "title": "EDI Lens: Compare With Another File (Pro)" },
+      { "command": "ediLens.exportJson", "title": "EDI Lens: Export As JSON (Pro)" },
+      { "command": "ediLens.exportCsv", "title": "EDI Lens: Export As CSV (Pro)" },
+      { "command": "ediLens.exportXml", "title": "EDI Lens: Export As XML (Pro)" },
+      { "command": "ediLens.validateWorkspace", "title": "EDI Lens: Validate Workspace (Pro)" },
+      { "command": "ediLens.loadDictionary", "title": "EDI Lens: Load Dictionary (Pro)" },
+      { "command": "ediLens.batchPrettyPrint", "title": "EDI Lens: Batch Pretty Print Folder (Pro)" }
+    ],
+    "submenus": [
+      { "id": "ediLens.editorMenu", "label": "EDI Lens" }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "ediLens.detectFormat", "when": "editorIsOpen" },
+        { "command": "ediLens.prettyPrint", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.minify", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.goToSegment", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.copyPath", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.jumpToTrailer", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.validateFile", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.compare", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.exportJson", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.exportCsv", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.exportXml", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.refreshTree", "when": "false" },
+        { "command": "ediLens.copyTreePath", "when": "false" },
+        { "command": "ediLens.revealRange", "when": "false" }
+      ],
+      "editor/context": [
+        {
+          "submenu": "ediLens.editorMenu",
+          "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7",
+          "group": "ediLens"
+        }
+      ],
+      "ediLens.editorMenu": [
+        { "command": "ediLens.goToSegment", "group": "1_navigate@1" },
+        { "command": "ediLens.jumpToTrailer", "group": "1_navigate@2" },
+        { "command": "ediLens.copyPath", "group": "1_navigate@3" },
+        { "command": "ediLens.prettyPrint", "group": "2_format@1" },
+        { "command": "ediLens.minify", "group": "2_format@2" },
+        { "command": "ediLens.validateFile", "group": "2_format@3" },
+        { "command": "ediLens.compare", "group": "3_pro@1" },
+        { "command": "ediLens.exportJson", "group": "3_pro@2" },
+        { "command": "ediLens.exportCsv", "group": "3_pro@3" },
+        { "command": "ediLens.exportXml", "group": "3_pro@4" }
+      ],
+      "explorer/context": [
+        { "command": "ediLens.batchPrettyPrint", "when": "explorerResourceIsFolder", "group": "ediLens" }
+      ],
+      "view/title": [
+        { "command": "ediLens.refreshTree", "when": "view == ediLens.outline", "group": "navigation" }
+      ],
+      "view/item/context": [
+        { "command": "ediLens.copyTreePath", "when": "view == ediLens.outline && viewItem == ediLens.node", "group": "ediLens" }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "ediLens", "title": "EDI Lens", "icon": "media/activity.svg" }
+      ]
+    },
+    "views": {
+      "ediLens": [
+        { "id": "ediLens.outline", "name": "Outline", "contextualTitle": "EDI Lens" }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "ediLens.outline",
+        "contents": "Open a UN/EDIFACT, ANSI X12 or HL7 v2 file to see its segments here.\n[Detect Format Of This File](command:ediLens.detectFormat)"
+      }
+    ],
+    "configuration": {
+      "title": "EDI Lens",
+      "properties": {
+        "ediLens.validateOnType": {
+          "type": "boolean",
+          "default": true,
+          "order": 1,
+          "markdownDescription": "Check the structure of EDI files while you type (after a short pause). When off, files are checked when opened and saved. Files above 2 MB are only re-checked on save."
+        },
+        "ediLens.maxFileSizeMB": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 500,
+          "order": 2,
+          "markdownDescription": "Largest file size, in megabytes, that is parsed automatically for the outline, hovers, status bar and problems. Larger files are only checked on demand with **EDI Lens: Validate Current File**."
+        },
+        "ediLens.maxIssues": {
+          "type": "integer",
+          "default": 500,
+          "minimum": 1,
+          "maximum": 5000,
+          "order": 3,
+          "markdownDescription": "Maximum number of problems reported per file."
+        },
+        "ediLens.hover.enabled": {
+          "type": "boolean",
+          "default": true,
+          "order": 4,
+          "markdownDescription": "Show the path, value, position and length of the item under the pointer. With a loaded dictionary (Pro) the hover also shows names."
+        },
+        "ediLens.autoDetectLanguage": {
+          "type": "boolean",
+          "default": true,
+          "order": 5,
+          "markdownDescription": "When a file opens as UN/EDIFACT, ANSI X12 or HL7 v2 but its content is clearly another one of the three (for example an X12 file named `.edi`), switch the language to match. A language you choose by hand is not changed again in the same session."
+        },
+        "ediLens.workspace.include": {
+          "type": "string",
+          "default": "**/*.{edi,edifact,edf,x12,x12edi,hl7}",
+          "order": 6,
+          "markdownDescription": "Glob pattern of the files scanned by **Validate Workspace** and rewritten by **Batch Pretty Print Folder**. Validate Workspace also examines the first bytes of files without a matching extension."
+        },
+        "ediLens.workspace.exclude": {
+          "type": "string",
+          "default": "**/{node_modules,.git,.hg,.svn}/**",
+          "order": 7,
+          "markdownDescription": "Glob pattern of the files and folders that the workspace features skip."
+        },
+        "ediLens.compare.ignoreSegments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "order": 8,
+          "markdownDescription": "Segment ids that **Compare With Another File** leaves out, for example `UNB`, `UNZ`, `ISA`, `IEA`."
+        },
+        "ediLens.compare.ignorePaths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "order": 9,
+          "markdownDescription": "Paths that **Compare With Another File** skips, for example control numbers or dates. `*` matches any characters: `UNB[1]-5.*`, `MSH[1]-7`."
+        },
+        "ediLens.compare.ignoreCase": {
+          "type": "boolean",
+          "default": false,
+          "order": 10,
+          "markdownDescription": "Treat upper and lower case letters as equal when comparing."
+        },
+        "ediLens.compare.trimValues": {
+          "type": "boolean",
+          "default": false,
+          "order": 11,
+          "markdownDescription": "Ignore leading and trailing spaces in values when comparing."
+        },
+        "ediLens.export.neutraliseFormulas": {
+          "type": "boolean",
+          "default": false,
+          "order": 12,
+          "markdownDescription": "In CSV exports, put an apostrophe in front of values that start with `=`, `+`, `-` or `@`, so spreadsheet programs do not treat them as formulas. This changes those values in the export."
+        },
+        "ediLens.licenceMode": {
+          "type": "string",
+          "enum": ["test", "live"],
+          "default": "test",
+          "scope": "application",
+          "order": 13,
+          "markdownDescription": "Which licence server environment is used for Pro. Leave this unchanged unless support asks you to change it."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+.vscode/**
+.vscode-test/**
+test/**
+SPEC.md
+demo/**
+**/*.map
+**/*.vsix
+**/*.test.js
+node_modules/**
+.gitignore
+.vscodeignore
+media/screenshots/**

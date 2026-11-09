@@ -1,0 +1,96 @@
+EDI Lens End User Licence Agreement
+
+Copyright (c) 2026 Imad Muratspahic. All rights reserved.
+
+This agreement is between you and Imad Muratspahic ("the author") and covers the
+EDI Lens extension for Visual Studio Code ("the software"). By installing or
+using the software you accept these terms. If you do not accept them, do not
+install or use the software.
+
+1. What you may do
+
+   a) Free tier. You may install and use the free features of the software on
+      any number of your own computers, for personal, educational and commercial
+      purposes, without charge.
+
+   b) Pro tier. The Pro features are unlocked with a paid licence key. A key
+      lets you use the Pro features on the number of machines stated when you
+      bought it. You may remove a key from one machine (command "EDI Lens:
+      Remove Licence From This Machine") and use it on another.
+
+   c) You may keep any backup copy of the software that you need for your own use.
+
+2. What you may not do
+
+   a) Copy, redistribute, publish, sell, rent, lend or sublicense the software,
+      or any part of it, to anyone else, in its original or a modified form.
+
+   b) Share a licence key with people outside the licence you bought, or use it
+      on more machines than it allows.
+
+   c) Remove, disable or work around the licence check or any other limit of the
+      software.
+
+   d) Decompile or reverse engineer the software, except to the extent that the
+      law gives you this right and cannot be excluded by contract.
+
+   e) Remove copyright or ownership notices.
+
+3. Ownership
+
+   The software is licensed, not sold. The author keeps all rights in the
+   software that this agreement does not expressly give to you. Your own files
+   and data remain yours; the software does not claim any right in them.
+
+4. Your files and privacy
+
+   The software reads and processes your files only on your own computer. The only
+   network request it makes is the licence check described in PRIVACY.md.
+
+5. Updates
+
+   The author may publish updates. Updates are covered by this agreement unless
+   they come with their own terms.
+
+6. Ending the agreement
+
+   This agreement ends if you break it. Then you must stop using the software
+   and delete your copies. A paid licence key may be deactivated if it is used
+   against section 2.
+
+7. No warranty
+
+   The software is provided "as is", without warranty of any kind, express or
+   implied, including the warranties of merchantability, fitness for a
+   particular purpose and non-infringement. The checks the software performs
+   are structural aids; they do not replace testing with your trading partners'
+   or your own systems, and the author does not promise that the software finds
+   every problem in a file.
+
+8. Limit of liability
+
+   To the extent the law allows, the author is not liable for any indirect,
+   incidental or consequential loss, or for loss of data, profit or business,
+   arising from the use of or the inability to use the software. The total
+   liability of the author for any claim about the software is limited to the
+   amount you paid for the licence key in the twelve months before the claim, or
+   zero if you only used the free tier. Nothing in this agreement limits
+   liability that cannot be limited by law, and it does not affect any
+   mandatory consumer rights you have where you live.
+
+9. Governing law
+
+   This agreement is governed by the laws of Bosnia and Herzegovina, without
+   regard to its rules on conflicts of law. Mandatory consumer protection rules of
+   the country where you live remain unaffected.
+
+10. Contact
+
+    Questions about this agreement: https://github.com/ImadMuratspahic/edi-lens/issues
+
+
+Third-party notice
+
+EDI Lens contains no bundled third-party components. It is written in plain
+JavaScript and uses only the Node.js runtime and the extension interface that
+Visual Studio Code provides; neither is distributed with the software.

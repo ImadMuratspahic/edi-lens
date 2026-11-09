@@ -1,0 +1,6 @@
+{
+  "wordPattern": "[^\\s+:'*|^~&?<>\\\\]+",
+  "brackets": [],
+  "autoClosingPairs": [],
+  "surroundingPairs": []
+}
