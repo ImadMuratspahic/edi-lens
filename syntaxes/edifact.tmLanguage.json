@@ -1,0 +1,63 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "UN/EDIFACT",
+  "scopeName": "source.edifact",
+  "patterns": [
+    { "include": "#service-string-advice" },
+    { "include": "#segment" }
+  ],
+  "repository": {
+    "service-string-advice": {
+      "comment": "UNA followed by the six service characters: component, element, decimal mark, release, reserved, terminator.",
+      "match": "(?<![^\\s])(UNA)(.)(.)(.)(.)(.)(.)",
+      "captures": {
+        "1": { "name": "entity.name.tag.segment.una.edifact" },
+        "2": { "name": "punctuation.separator.component.edifact" },
+        "3": { "name": "punctuation.separator.element.edifact" },
+        "4": { "name": "punctuation.separator.decimal.edifact" },
+        "5": { "name": "constant.character.escape.release.edifact" },
+        "6": { "name": "punctuation.separator.reserved.edifact" },
+        "7": { "name": "punctuation.terminator.segment.edifact" }
+      }
+    },
+    "segment": {
+      "comment": "A segment starts with a three character tag and ends with the segment terminator. Highlighting assumes the default service characters + : ' and ?.",
+      "begin": "(?<![^\\s'])([A-Z][A-Z0-9]{2})(?=[+:'\\s]|$)",
+      "beginCaptures": {
+        "1": { "name": "entity.name.tag.segment.edifact" }
+      },
+      "end": "'",
+      "endCaptures": {
+        "0": { "name": "punctuation.terminator.segment.edifact" }
+      },
+      "patterns": [
+        { "include": "#release" },
+        { "include": "#element-separator" },
+        { "include": "#component-separator" },
+        { "include": "#qualifier" },
+        { "include": "#number" }
+      ]
+    },
+    "release": {
+      "match": "\\?.",
+      "name": "constant.character.escape.release.edifact"
+    },
+    "element-separator": {
+      "match": "\\+",
+      "name": "punctuation.separator.element.edifact"
+    },
+    "component-separator": {
+      "match": ":",
+      "name": "punctuation.separator.component.edifact"
+    },
+    "qualifier": {
+      "comment": "Short upper case codes directly after a separator, typically qualifiers and code values.",
+      "match": "(?<=[+:])[A-Z0-9]{1,3}(?=[+:']|\\s*$)",
+      "name": "constant.other.code.edifact"
+    },
+    "number": {
+      "match": "[0-9]+(?:,[0-9]+)?",
+      "name": "constant.numeric.edifact"
+    }
+  }
+}

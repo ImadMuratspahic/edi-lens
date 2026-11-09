@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "ANSI X12",
+  "scopeName": "source.x12",
+  "patterns": [
+    { "include": "#segment" }
+  ],
+  "repository": {
+    "segment": {
+      "comment": "A segment starts with a two or three character tag and ends with the segment terminator. Highlighting assumes the common separators * : > and ~.",
+      "begin": "(?<![^\\s~])([A-Z][A-Z0-9]{1,2})(?=[*\\s~])",
+      "beginCaptures": {
+        "1": { "name": "entity.name.tag.segment.x12" }
+      },
+      "end": "~",
+      "endCaptures": {
+        "0": { "name": "punctuation.terminator.segment.x12" }
+      },
+      "patterns": [
+        { "include": "#element-separator" },
+        { "include": "#component-separator" },
+        { "include": "#qualifier" },
+        { "include": "#number" }
+      ]
+    },
+    "element-separator": {
+      "match": "\\*",
+      "name": "punctuation.separator.element.x12"
+    },
+    "component-separator": {
+      "match": "[:>]",
+      "name": "punctuation.separator.component.x12"
+    },
+    "qualifier": {
+      "comment": "Short codes directly after a separator, typically qualifiers and code values.",
+      "match": "(?<=[*:>])[A-Z0-9]{1,3}(?=[*:>~]|\\s*$)",
+      "name": "constant.other.code.x12"
+    },
+    "number": {
+      "match": "[0-9]+(?:\\.[0-9]+)?",
+      "name": "constant.numeric.x12"
+    }
+  }
+}
