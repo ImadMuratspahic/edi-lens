@@ -1,0 +1,7 @@
+MSH|^~\&|LABSYS|CITYLAB|EHR|GENHOSP|20240116101500||ORU^R01^ORU_R01|LAB00042|P|2.5.1
+PID|1||100200300^^^GENHOSP^MR~900800700^^^NATID^NI||Doe^Jane^Q||19800214|F
+OBR|1|ORD5566|LAB7788|718-7^Hemoglobin^LN|||20240116093000
+OBX|1|NM|718-7^Hemoglobin^LN||13.2|g/dL|12.0-16.0|N|||F
+OBX|2|ST|X-NOTE^Comment^L||Sample haemolysed\.br\recheck advised \F\ pipe||||||F
+OBX|3|CWE|RES^Result^L||POS^Positive&Strong&Marked^L||||||F
+NTE|1||Collected by phlebotomy
