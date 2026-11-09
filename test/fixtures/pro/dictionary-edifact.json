@@ -1,0 +1,27 @@
+{
+  "format": "edifact",
+  "name": "Sample order dictionary",
+  "segments": {
+    "BGM": {
+      "name": "Beginning of message",
+      "elements": {
+        "1": {
+          "name": "Document name",
+          "components": { "1": "Document name code" },
+          "values": { "220": "Order", "231": "Purchase order change request" }
+        },
+        "2": { "name": "Document number" }
+      }
+    },
+    "nad": {
+      "name": "Name and address",
+      "elements": {
+        "1": { "name": "Party qualifier", "values": { "BY": "Buyer", "SU": "Supplier" } },
+        "2": {
+          "name": "Party identification",
+          "components": { "1": "Party id", "2": "Code list", "3": "Agency" }
+        }
+      }
+    }
+  }
+}

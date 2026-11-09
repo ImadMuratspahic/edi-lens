@@ -1,0 +1,12 @@
+{
+  "format": "edi",
+  "segments": {
+    "BGM": {
+      "elements": {
+        "one": { "name": "Not a number" },
+        "2": { "components": { "1": 5 }, "values": [] }
+      }
+    },
+    "LONGID": {}
+  }
+}
