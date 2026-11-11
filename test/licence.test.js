@@ -83,7 +83,7 @@ test('activate success stores key in secrets and instance id in global state', a
   assert.deepEqual(r, { ok: true });
   assert.equal(env.fetchStub.calls[0].path, '/licenses/activate');
   assert.equal(env.fetchStub.calls[0].body.license_key, KEY);
-  assert.equal(env.fetchStub.calls[0].host, 'https://test.dodopayments.com');
+  assert.equal(env.fetchStub.calls[0].host, 'https://live.dodopayments.com');
   assert.equal(env.fetchStub.calls[0].init.method, 'POST');
   assert.equal([...env.stores.secretMap.values()][0], KEY);
   assert.ok([...env.stores.stateMap.values()].includes('lki_instance_1'));
@@ -295,7 +295,7 @@ test('status(true) bypasses the cache and never exposes the full key', async () 
   assert.equal(env.fetchStub.calls.length, n + 1);
   assert.equal(st.pro, true);
   assert.equal(st.via, 'server');
-  assert.equal(st.mode, 'test');
+  assert.equal(st.mode, 'live');
   assert.equal(st.keyHint, '...' + KEY.slice(-4));
   assert.ok(!JSON.stringify(st).includes(KEY));
 });
@@ -386,6 +386,15 @@ test('config: the release check refuses live mode without a buy URL', () => {
     config.mode = saved.mode;
     config.buyUrlLive = saved.url;
   }
+});
+
+test('the shipped build is in live mode and points at the live product only', () => {
+  assert.equal(config.mode, 'live');
+  assert.equal(config.productIdLive, 'pdt_0NriIrMqPm9xOakMMZtw4');
+  assert.equal(config.buyUrlLive, 'https://checkout.dodopayments.com/buy/' + config.productIdLive + '?quantity=1');
+  assert.equal(config.resolve(undefined).api, 'https://live.dodopayments.com');
+  assert.equal(config.resolve(undefined).buyUrl, config.buyUrlLive);
+  assert.ok(!/test/i.test(config.buyUrlLive) && !/test/i.test(config.apiBaseLive));
 });
 
 test('the shipped package manifest passes the release check', () => {

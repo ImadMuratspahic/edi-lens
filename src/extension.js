@@ -50,7 +50,7 @@ function activate(context) {
         ignoreCase: c.get('compare.ignoreCase', false) === true,
         trimValues: c.get('compare.trimValues', false) === true
       },
-      licenceMode: c.get('licenceMode', 'test')
+      licenceMode: c.get('licenceMode', 'live')
     };
     return settingsCache;
   }

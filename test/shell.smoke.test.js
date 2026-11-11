@@ -491,14 +491,15 @@ test('Buy Pro opens the checkout link of the configured environment', async () =
   const app = boot({});
   try {
     await app.run('ediLens.buyPro');
-    assert.equal(String(app.state.opened.path).includes('checkout.dodopayments.com') || String(app.state.opened).includes('checkout.dodopayments.com'), true);
+    assert.equal(app.state.opened.scheme, 'https');
+    assert.equal(app.state.opened.path, 'checkout.dodopayments.com/buy/pdt_0NriIrMqPm9xOakMMZtw4?quantity=1', 'the default is the live checkout link');
   } finally { app.stop(); }
-  const live = boot({ config: { licenceMode: 'live' } });
+  const test = boot({ config: { licenceMode: 'test' } });
   try {
-    await live.run('ediLens.buyPro');
-    assert.equal(live.state.opened, undefined, 'live mode without a link opens nothing');
-    assert.match(live.state.infoMessages.at(-1).text, /not on sale yet/);
-  } finally { live.stop(); }
+    await test.run('ediLens.buyPro');
+    assert.equal(test.state.opened.scheme, 'https');
+    assert.match(test.state.opened.path, /^test\.checkout\.dodopayments\.com\/buy\//);
+  } finally { test.stop(); }
 });
 
 async function goPro(app) {

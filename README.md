@@ -46,7 +46,7 @@ The free tier is complete for everyday reading, checking and formatting. Pro add
 | Load Dictionary: names in hovers and in the outline | | yes |
 | Batch Pretty Print Folder | | yes |
 
-Pro is unlocked with a licence key that you buy once on the checkout page opened by **EDI Lens: Buy Pro**. A key can be active on a limited number of machines; **EDI Lens: Remove Licence From This Machine** frees an activation. Pro features show a single clear message with **Buy Pro** and **Enter Licence Key** buttons when no valid licence is present. Nothing nags you otherwise.
+**EDI Lens is free to install and use. The Pro features are sold separately, outside the Visual Studio Marketplace.** Pro is a one-time payment (USD 29 at the time of writing; the checkout page shows the final price and any taxes for your country), not a subscription. Pro is unlocked with a licence key that you buy once on the checkout page opened by **EDI Lens: Buy Pro**. A key can be active on a limited number of machines; **EDI Lens: Remove Licence From This Machine** frees an activation. Pro features show a single clear message with **Buy Pro** and **Enter Licence Key** buttons when no valid licence is present. Nothing nags you otherwise.
 
 ![The message shown by a Pro command when no licence key is entered](media/screenshots/pro-notice.png)
 
@@ -197,7 +197,7 @@ The editor context menu of EDI Lens languages has an **EDI Lens** submenu. No ke
 | `ediLens.compare.ignoreCase` | `false` | Ignore case when comparing. |
 | `ediLens.compare.trimValues` | `false` | Ignore leading and trailing spaces when comparing. |
 | `ediLens.export.neutraliseFormulas` | `false` | In CSV exports, prefix values that start with `=`, `+`, `-` or `@` with an apostrophe so spreadsheets do not run them as formulas. |
-| `ediLens.licenceMode` | `test` | Licence server environment. Leave unchanged unless support asks you to change it. |
+| `ediLens.licenceMode` | `live` | Licence server environment. Leave unchanged unless support asks you to change it. |
 
 ## Limits and good to know
 
@@ -215,9 +215,17 @@ EDI Lens has no telemetry and sends none of your files or file names anywhere. P
 
 The only network request is the licence check of the Pro tier, and it is only made after you have entered a licence key. It sends the licence key and the text `VS Code on <platform>` (for example `VS Code on Windows`; never your computer's name) to the licence service of the payment provider, to activate, validate or deactivate the key. A successful check is remembered for 24 hours, and if the service cannot be reached the last successful check keeps Pro working for 14 days. Without a licence key the extension makes no network requests at all. The licence key is stored in VS Code's secret storage. The full statement is in [PRIVACY.md](PRIVACY.md).
 
+Data disclosure for the licence check:
+
+* **When it happens.** After you enter a key, when you run **Enter Licence Key**, **Show Licence Status** or **Remove Licence From This Machine** (you start these), and also on its own, at your next use of a Pro feature once the last successful check is older than 24 hours. Never without a key; never for the free features.
+* **What is sent.** The licence key, the label `VS Code on <platform>` (activation only), and the activation id the service returned (validation and deactivation). Nothing else: no file contents, file names, user name, computer name, workspace path or usage statistics. The service also sees your IP address, as any web service does.
+* **Who receives it.** Dodo Payments, the payment provider and merchant of record that sold the key, at `live.dodopayments.com`. The data is not sent to the author or to any other third party.
+* **Where it goes and how long it is kept.** The provider may process data in several countries and keeps it as long as its own privacy policy states: <https://dodopayments.com/legal/privacy-policy>. The extension keeps the key and the activation id only on your machine, until you remove the licence.
+* **Anonymity.** Not anonymous: a licence key belongs to a purchase and therefore to the buyer's record at the payment provider. The platform label contains no personal data.
+
 ## Names
 
-UN/EDIFACT, ANSI X12 and HL7 are names of standards that belong to their respective organisations. They are used here only to say which formats the extension reads. EDI Lens is an independent product and is not affiliated with or endorsed by any of them.
+UN/EDIFACT, ANSI X12 and HL7 are names of standards that belong to their respective organisations. HL7 is a registered trademark of Health Level Seven International; X12 and ASC X12 are registered trademarks of ASC X12; ANSI is a trademark of the American National Standards Institute. The names are used here only to say which file formats the extension reads. EDI Lens contains no text, tables, code lists or schemas from any of these standards. It is an independent product and is not affiliated with, approved by or endorsed by any of these organisations.
 
 ## Support
 

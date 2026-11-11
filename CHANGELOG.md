@@ -2,7 +2,7 @@
 
 ## 0.1.0
 
-First release.
+First release. EDI Lens is free to use; Pro features are unlocked with a one-time licence key sold outside the Marketplace.
 
 Free:
 

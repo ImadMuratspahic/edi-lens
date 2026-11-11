@@ -6,11 +6,12 @@
 // link. `assertShippable()` is run by the package script and refuses to build otherwise.
 
 const config = {
-  mode: 'test',
+  mode: 'live',
   apiBaseTest: 'https://test.dodopayments.com',
   apiBaseLive: 'https://live.dodopayments.com',
   buyUrlTest: 'https://test.checkout.dodopayments.com/buy/pdt_0NqrEZaiFzCqjDPsdymnW?quantity=1',
-  buyUrlLive: ''
+  productIdLive: 'pdt_0NriIrMqPm9xOakMMZtw4',
+  buyUrlLive: 'https://checkout.dodopayments.com/buy/pdt_0NriIrMqPm9xOakMMZtw4?quantity=1'
 };
 
 /**

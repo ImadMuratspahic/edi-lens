@@ -1,7 +1,7 @@
 {
   "name": "edi-lens",
   "displayName": "EDI Lens",
-  "description": "Read, validate, reformat and compare UN/EDIFACT, ANSI X12 and HL7 v2 messages. Works offline.",
+  "description": "Read, validate, reformat and compare UN/EDIFACT, ANSI X12 and HL7 v2 messages. Free, with paid Pro features. Works offline; only the Pro licence check (after you enter a key) uses the network.",
   "version": "0.1.0",
   "publisher": "ImadMuratspahic",
   "license": "SEE LICENSE IN LICENSE.txt",
@@ -298,8 +298,9 @@
         "ediLens.licenceMode": {
           "type": "string",
           "enum": ["test", "live"],
-          "default": "test",
+          "default": "live",
           "scope": "application",
+          "tags": ["usesOnlineServices"],
           "order": 13,
           "markdownDescription": "Which licence server environment is used for Pro. Leave this unchanged unless support asks you to change it."
         }

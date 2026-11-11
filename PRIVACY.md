@@ -1,6 +1,6 @@
 # Privacy
 
-Last updated: 2026-11-09
+Last updated: 2026-11-11
 
 EDI Lens works on your computer. This page states exactly what the extension sends over the network, which is very little.
 
@@ -12,7 +12,7 @@ EDI Lens works on your computer. This page states exactly what the extension sen
 
 ## The one network request: the licence check (Pro only)
 
-The optional Pro tier is unlocked with a licence key. After you enter a key (**EDI Lens: Enter Licence Key**), the extension talks to the licence service of the payment provider, Dodo Payments, at `live.dodopayments.com` (`test.dodopayments.com` while the product is in test mode). It uses only the provider's public licence endpoints, to activate, validate and deactivate a key.
+The optional Pro tier is unlocked with a licence key. After you enter a key (**EDI Lens: Enter Licence Key**), the extension talks to the licence service of the payment provider, Dodo Payments, at `live.dodopayments.com`. It uses only the provider's public licence endpoints, to activate, validate and deactivate a key.
 
 Each request contains:
 
@@ -21,6 +21,13 @@ Each request contains:
 * for validation and deactivation, the activation id that the service returned when you activated the key.
 
 As with any internet request, the service sees your IP address.
+
+Who receives it, where it goes and how long it is kept:
+
+* The recipient is Dodo Payments, the payment provider and merchant of record that sells the licence key. The data is sent to its servers at `live.dodopayments.com` and to nobody else. The author of the extension does not run a server and receives none of it.
+* The provider may process data in several countries. How long it keeps data, and under which legal basis, is set out in its own privacy policy: <https://dodopayments.com/legal/privacy-policy>. The extension itself keeps nothing but the items listed under "What is stored locally" below.
+* The data is **not anonymous**. A licence key belongs to a purchase and therefore to the buyer's record at the payment provider. The platform label contains no personal data.
+* No data from this request is used for advertising, analytics or profiling by the extension.
 
 When it happens:
 
