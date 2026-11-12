@@ -1,5 +1,20 @@
 node_modules/
 *.vsix
+*.log
 .vscode-test/
 .env
-*.log
+
+# Working notes and release tooling stay local.
+SPEC.md
+NOTES.md
+*NOTES*.md
+*-SPEC.md
+PRO-FEATURES-*.md
+QA-*.md
+STATUS*
+PRE-RELEASE-CHECKLIST.md
+RELEASE-NOTES-*.md
+scripts/
+demo/
+test/smoke/
+test/private.*.test.js

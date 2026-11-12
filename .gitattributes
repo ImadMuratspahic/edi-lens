@@ -1,0 +1,20 @@
+# Source and documentation use LF in the repository and on every checkout.
+*               text=auto eol=lf
+*.js            text eol=lf
+*.json          text eol=lf
+*.md            text eol=lf
+*.txt           text eol=lf
+*.yml           text eol=lf
+
+# Message fixtures keep their exact bytes: several of them test CR, LF and CRLF handling.
+test/fixtures/**    -text
+*.edi               -text
+*.edifact           -text
+*.edf               -text
+*.x12               -text
+*.x12edi            -text
+*.hl7               -text
+
+# Binary assets.
+*.png           binary
+*.vsix          binary

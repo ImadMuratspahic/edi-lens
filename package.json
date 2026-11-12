@@ -1,12 +1,12 @@
 {
   "name": "edi-lens",
   "displayName": "EDI Lens",
-  "description": "Read, validate, reformat and compare UN/EDIFACT, ANSI X12 and HL7 v2 messages. Free, with paid Pro features. Works offline; only the Pro licence check (after you enter a key) uses the network.",
-  "version": "0.1.0",
+  "description": "Read, validate, compare, query, anonymise and split UN/EDIFACT, ANSI X12 and HL7 v2 messages. Free features plus a 14-day trial of Pro; works offline, only the Pro licence check uses the network.",
+  "version": "0.2.0",
   "publisher": "ImadMuratspahic",
   "license": "SEE LICENSE IN LICENSE.txt",
   "icon": "media/icon.png",
-  "pricing": "Free",
+  "pricing": "Trial",
   "homepage": "https://imadmuratspahic-dev.carrd.co",
   "repository": {
     "type": "git",
@@ -31,16 +31,34 @@
   "keywords": [
     "edi",
     "edifact",
+    "un/edifact",
     "x12",
+    "ansi x12",
     "hl7",
     "hl7 v2",
-    "segment",
+    "edi viewer",
+    "edi validator",
+    "edi formatter",
+    "edifact viewer",
+    "x12 viewer",
+    "hl7 viewer",
     "validator",
-    "formatter",
+    "pretty print",
     "diff",
+    "compare",
+    "export",
+    "json",
+    "csv",
     "healthcare",
     "supply chain",
-    "integration"
+    "logistics",
+    "interchange",
+    "anonymize",
+    "pseudonymize",
+    "test data",
+    "implementation guide",
+    "997",
+    "acknowledgement"
   ],
   "main": "./src/extension.js",
   "capabilities": {
@@ -49,39 +67,20 @@
     },
     "virtualWorkspaces": {
       "supported": "limited",
-      "description": "Validate Workspace and Batch Pretty Print Folder need a folder on a real file system. All single-file features work in virtual workspaces."
+      "description": "The folder commands (Validate Workspace, Batch Pretty Print Folder, Anonymise Folder, Validate Folder With Partner Rules, Query over a folder) need a folder on a real file system. All single-file features work in virtual workspaces."
     }
   },
   "activationEvents": [
     "onLanguage:edifact",
     "onLanguage:x12",
-    "onLanguage:hl7",
-    "onView:ediLens.outline",
-    "onCommand:ediLens.detectFormat",
-    "onCommand:ediLens.prettyPrint",
-    "onCommand:ediLens.minify",
-    "onCommand:ediLens.goToSegment",
-    "onCommand:ediLens.copyPath",
-    "onCommand:ediLens.jumpToTrailer",
-    "onCommand:ediLens.validateFile",
-    "onCommand:ediLens.unloadDictionary",
-    "onCommand:ediLens.clearWorkspaceResults",
-    "onCommand:ediLens.buyPro",
-    "onCommand:ediLens.enterKey",
-    "onCommand:ediLens.licenceStatus",
-    "onCommand:ediLens.removeLicence",
-    "onCommand:ediLens.compare",
-    "onCommand:ediLens.exportJson",
-    "onCommand:ediLens.exportCsv",
-    "onCommand:ediLens.exportXml",
-    "onCommand:ediLens.validateWorkspace",
-    "onCommand:ediLens.loadDictionary",
-    "onCommand:ediLens.batchPrettyPrint"
+    "onLanguage:hl7"
   ],
   "scripts": {
     "test": "node --test",
+    "gate": "node scripts/release-gate.js",
     "vscode:prepublish": "node -e \"const c=require('./src/licence/config');c.assertShippable(require('./package.json'))\"",
-    "package": "npx --yes @vscode/vsce package"
+    "package": "npx --yes @vscode/vsce package --no-dependencies",
+    "check-vsix": "node scripts/check-vsix.js"
   },
   "contributes": {
     "languages": [
@@ -134,6 +133,12 @@
       { "command": "ediLens.validateFile", "title": "EDI Lens: Validate Current File" },
       { "command": "ediLens.unloadDictionary", "title": "EDI Lens: Unload Dictionary" },
       { "command": "ediLens.clearWorkspaceResults", "title": "EDI Lens: Clear Workspace Validation Results" },
+      { "command": "ediLens.openSampleEdifact", "title": "EDI Lens: Open Sample EDIFACT" },
+      { "command": "ediLens.openSampleX12", "title": "EDI Lens: Open Sample X12" },
+      { "command": "ediLens.openSampleHl7", "title": "EDI Lens: Open Sample HL7" },
+      { "command": "ediLens.openWalkthrough", "title": "EDI Lens: Open Getting Started Guide" },
+      { "command": "ediLens.showDocumentation", "title": "EDI Lens: Show Documentation" },
+      { "command": "ediLens.reportProblem", "title": "EDI Lens: Report A Problem" },
       { "command": "ediLens.refreshTree", "title": "EDI Lens: Refresh Outline", "icon": "$(refresh)" },
       { "command": "ediLens.copyTreePath", "title": "EDI Lens: Copy Path" },
       { "command": "ediLens.revealRange", "title": "EDI Lens: Reveal In Editor" },
@@ -147,7 +152,23 @@
       { "command": "ediLens.exportXml", "title": "EDI Lens: Export As XML (Pro)" },
       { "command": "ediLens.validateWorkspace", "title": "EDI Lens: Validate Workspace (Pro)" },
       { "command": "ediLens.loadDictionary", "title": "EDI Lens: Load Dictionary (Pro)" },
-      { "command": "ediLens.batchPrettyPrint", "title": "EDI Lens: Batch Pretty Print Folder (Pro)" }
+      { "command": "ediLens.batchPrettyPrint", "title": "EDI Lens: Batch Pretty Print Folder (Pro)" },
+      { "command": "ediLens.anonymise", "title": "EDI Lens: Anonymise Message (Pro)" },
+      { "command": "ediLens.anonymiseFolder", "title": "EDI Lens: Anonymise Folder (Pro)" },
+      { "command": "ediLens.exportPseudonymMap", "title": "EDI Lens: Export Pseudonym Map (Pro)" },
+      { "command": "ediLens.validateWithRules", "title": "EDI Lens: Validate With Partner Rules (Pro)" },
+      { "command": "ediLens.createRules", "title": "EDI Lens: Create Rules From This Message (Pro)" },
+      { "command": "ediLens.validateFolderWithRules", "title": "EDI Lens: Validate Folder With Partner Rules (Pro)" },
+      { "command": "ediLens.clearRulesResults", "title": "EDI Lens: Clear Partner Rules Results" },
+      { "command": "ediLens.query", "title": "EDI Lens: Query (Pro)", "icon": "$(search)" },
+      { "command": "ediLens.queryExportCsv", "title": "EDI Lens: Export Query Results As CSV (Pro)", "icon": "$(export)" },
+      { "command": "ediLens.clearQueryResults", "title": "EDI Lens: Clear Query Results", "icon": "$(clear-all)" },
+      { "command": "ediLens.deleteSavedQuery", "title": "EDI Lens: Delete Saved Query" },
+      { "command": "ediLens.revealQueryResult", "title": "EDI Lens: Reveal Query Result" },
+      { "command": "ediLens.splitInterchange", "title": "EDI Lens: Split Interchange Into Messages (Pro)" },
+      { "command": "ediLens.mergeMessages", "title": "EDI Lens: Merge Messages Into One Interchange (Pro)" },
+      { "command": "ediLens.renumberControlNumbers", "title": "EDI Lens: Renumber Control Numbers (Pro)" },
+      { "command": "ediLens.generateAcknowledgement", "title": "EDI Lens: Generate Acknowledgement (Pro)" }
     ],
     "submenus": [
       { "id": "ediLens.editorMenu", "label": "EDI Lens" }
@@ -165,6 +186,13 @@
         { "command": "ediLens.exportJson", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
         { "command": "ediLens.exportCsv", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
         { "command": "ediLens.exportXml", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.anonymise", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.validateWithRules", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.createRules", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.splitInterchange", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.renumberControlNumbers", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.generateAcknowledgement", "when": "editorLangId == edifact || editorLangId == x12 || editorLangId == hl7" },
+        { "command": "ediLens.revealQueryResult", "when": "false" },
         { "command": "ediLens.refreshTree", "when": "false" },
         { "command": "ediLens.copyTreePath", "when": "false" },
         { "command": "ediLens.revealRange", "when": "false" }
@@ -186,13 +214,27 @@
         { "command": "ediLens.compare", "group": "3_pro@1" },
         { "command": "ediLens.exportJson", "group": "3_pro@2" },
         { "command": "ediLens.exportCsv", "group": "3_pro@3" },
-        { "command": "ediLens.exportXml", "group": "3_pro@4" }
+        { "command": "ediLens.exportXml", "group": "3_pro@4" },
+        { "command": "ediLens.anonymise", "group": "4_tools@1" },
+        { "command": "ediLens.validateWithRules", "group": "4_tools@2" },
+        { "command": "ediLens.createRules", "group": "4_tools@3" },
+        { "command": "ediLens.query", "group": "4_tools@4" },
+        { "command": "ediLens.splitInterchange", "group": "5_envelope@1" },
+        { "command": "ediLens.renumberControlNumbers", "group": "5_envelope@2" },
+        { "command": "ediLens.generateAcknowledgement", "group": "5_envelope@3" }
       ],
       "explorer/context": [
-        { "command": "ediLens.batchPrettyPrint", "when": "explorerResourceIsFolder", "group": "ediLens" }
+        { "command": "ediLens.batchPrettyPrint", "when": "explorerResourceIsFolder", "group": "ediLens@1" },
+        { "command": "ediLens.anonymiseFolder", "when": "explorerResourceIsFolder", "group": "ediLens@2" },
+        { "command": "ediLens.validateFolderWithRules", "when": "explorerResourceIsFolder", "group": "ediLens@3" },
+        { "command": "ediLens.query", "when": "explorerResourceIsFolder", "group": "ediLens@4" },
+        { "command": "ediLens.mergeMessages", "when": "explorerResourceIsFolder", "group": "ediLens@5" }
       ],
       "view/title": [
-        { "command": "ediLens.refreshTree", "when": "view == ediLens.outline", "group": "navigation" }
+        { "command": "ediLens.refreshTree", "when": "view == ediLens.outline", "group": "navigation" },
+        { "command": "ediLens.query", "when": "view == ediLens.queryResults", "group": "navigation@1" },
+        { "command": "ediLens.queryExportCsv", "when": "view == ediLens.queryResults", "group": "navigation@2" },
+        { "command": "ediLens.clearQueryResults", "when": "view == ediLens.queryResults", "group": "navigation@3" }
       ],
       "view/item/context": [
         { "command": "ediLens.copyTreePath", "when": "view == ediLens.outline && viewItem == ediLens.node", "group": "ediLens" }
@@ -205,14 +247,74 @@
     },
     "views": {
       "ediLens": [
-        { "id": "ediLens.outline", "name": "Outline", "contextualTitle": "EDI Lens" }
+        { "id": "ediLens.outline", "name": "Outline", "contextualTitle": "EDI Lens" },
+        { "id": "ediLens.queryResults", "name": "Query Results", "contextualTitle": "EDI Lens", "visibility": "collapsed" }
       ]
     },
     "viewsWelcome": [
       {
         "view": "ediLens.outline",
-        "contents": "Open a UN/EDIFACT, ANSI X12 or HL7 v2 file to see its segments here.\n[Detect Format Of This File](command:ediLens.detectFormat)"
+        "contents": "Open a UN/EDIFACT, ANSI X12 or HL7 v2 file to see its segments here.\n[Open a Sample Message](command:ediLens.openSampleEdifact)\n[Detect Format Of This File](command:ediLens.detectFormat)\n[Getting Started Guide](command:ediLens.openWalkthrough)"
+      },
+      {
+        "view": "ediLens.queryResults",
+        "contents": "Query (Pro) finds the messages that satisfy a condition, in the open file or in a folder, for example `NAD[BY]-2.1 == \"5412*\" AND count(LIN) > 2`.\n[Run A Query](command:ediLens.query)"
       }
+    ],
+    "walkthroughs": [
+      {
+        "id": "ediLens.gettingStarted",
+        "title": "Get started with EDI Lens",
+        "description": "Open a sample message, read its structure, check it for problems and try the Pro features with the free 14-day trial.",
+        "steps": [
+          {
+            "id": "ediLens.step.openSample",
+            "title": "Open a sample message",
+            "description": "EDI Lens reads UN/EDIFACT, ANSI X12 and HL7 v2 files. Open one of the short samples (invented data) to follow along, or open one of your own files.\n[Open EDIFACT Sample](command:ediLens.openSampleEdifact)\n[Open X12 Sample](command:ediLens.openSampleX12)\n[Open HL7 Sample](command:ediLens.openSampleHl7)",
+            "media": { "markdown": "media/walkthrough/open-sample.md" },
+            "completionEvents": ["onCommand:ediLens.openSampleEdifact", "onCommand:ediLens.openSampleX12", "onCommand:ediLens.openSampleHl7"]
+          },
+          {
+            "id": "ediLens.step.outline",
+            "title": "Read the outline",
+            "description": "The EDI Lens view in the activity bar lists every segment with its elements and components. Select an item to jump to it; right-click to copy its path.\n[Show the Outline](command:workbench.view.extension.ediLens)",
+            "media": { "markdown": "media/walkthrough/outline.md" },
+            "completionEvents": ["onView:ediLens.outline"]
+          },
+          {
+            "id": "ediLens.step.hover",
+            "title": "Hover a value",
+            "description": "Point at any part of a segment to see its path (for example NAD[2]-3.1), the raw value, its position and its length. \"Copy Path At Cursor\" puts the same path on the clipboard.\n[Copy Path At Cursor](command:ediLens.copyPath)",
+            "media": { "markdown": "media/walkthrough/hover.md" },
+            "completionEvents": ["onCommand:ediLens.copyPath", "stepSelected"]
+          },
+          {
+            "id": "ediLens.step.validate",
+            "title": "Run validation",
+            "description": "Envelopes, segment counts, control numbers and delimiters are checked when a file opens, when it is saved and while you type. Problems appear in the editor and in the Problems view with a stable code.\n[Validate Current File](command:ediLens.validateFile)",
+            "media": { "markdown": "media/walkthrough/validate.md" },
+            "completionEvents": ["onCommand:ediLens.validateFile"]
+          },
+          {
+            "id": "ediLens.step.pro",
+            "title": "Try Pro",
+            "description": "Compare, Export, Validate Workspace, dictionaries, Batch Pretty Print and the tools of the next step are Pro features. The first Pro command you run starts a free 14-day trial on this computer; no key, account or network is needed. A licence key (one-time purchase, Personal or Business) keeps them after the trial.\n[Compare With Another File](command:ediLens.compare)\n[Show Licence Status](command:ediLens.licenceStatus)",
+            "media": { "markdown": "media/walkthrough/pro.md" },
+            "completionEvents": ["onCommand:ediLens.compare", "onCommand:ediLens.exportJson", "onCommand:ediLens.exportCsv", "onCommand:ediLens.exportXml", "onCommand:ediLens.validateWorkspace", "onCommand:ediLens.licenceStatus"]
+          },
+          {
+            "id": "ediLens.step.proTools",
+            "title": "Share, check and split with Pro",
+            "description": "Four Pro tools for files from partners: Anonymise makes a copy with the identifying values replaced, Validate With Partner Rules checks your own implementation guide, Query finds messages by their content and the envelope tools split, merge, renumber and acknowledge. All of them run inside the 14-day trial.\n[Anonymise Message](command:ediLens.anonymise)\n[Create Rules From This Message](command:ediLens.createRules)\n[Run A Query](command:ediLens.query)\n[Generate Acknowledgement](command:ediLens.generateAcknowledgement)",
+            "media": { "markdown": "media/walkthrough/pro-tools.md" },
+            "completionEvents": ["onCommand:ediLens.anonymise", "onCommand:ediLens.createRules", "onCommand:ediLens.validateWithRules", "onCommand:ediLens.query", "onCommand:ediLens.splitInterchange", "onCommand:ediLens.generateAcknowledgement"]
+          }
+        ]
+      }
+    ],
+    "jsonValidation": [
+      { "fileMatch": ["**/.edilens/rules.json", "*.edilens-rules.json"], "url": "./schemas/rules.schema.json" },
+      { "fileMatch": ["**/.edilens/anonymise.json", "*.edilens-anonymise.json"], "url": "./schemas/anonymise.schema.json" }
     ],
     "configuration": {
       "title": "EDI Lens",
@@ -291,18 +393,72 @@
         },
         "ediLens.export.neutraliseFormulas": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "order": 12,
-          "markdownDescription": "In CSV exports, put an apostrophe in front of values that start with `=`, `+`, `-` or `@`, so spreadsheet programs do not treat them as formulas. This changes those values in the export."
+          "markdownDescription": "In CSV exports, put an apostrophe in front of values that start with `=`, `+`, `-`, `@`, a tab or a carriage return, so spreadsheet programs do not run them as formulas. On by default for safety; turn it off when you need the exact values (for example negative amounts such as `-150.00` keep their sign but get the apostrophe while this is on)."
         },
-        "ediLens.licenceMode": {
-          "type": "string",
-          "enum": ["test", "live"],
-          "default": "live",
-          "scope": "application",
-          "tags": ["usesOnlineServices"],
+        "ediLens.anonymise.profiles": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["hl7-patient", "x12-healthcare", "x12-party", "edifact-party"] },
+          "uniqueItems": true,
+          "default": ["hl7-patient", "x12-healthcare", "x12-party", "edifact-party"],
           "order": 13,
-          "markdownDescription": "Which licence server environment is used for Pro. Leave this unchanged unless support asks you to change it."
+          "markdownDescription": "Built-in rule sets used by **Anonymise Message** and **Anonymise Folder**: `hl7-patient` (the main identifying fields of PID, NK1, IN1 and GT1), `x12-healthcare` (the main identifying fields of 837, 835, 270 and 271), `x12-party` (N1, N2, N3, N4 and PER of any transaction) and `edifact-party` (NAD, CTA, COM and FII). Each one applies to its own format only and replaces only the paths listed in the documentation. A rule file that lists `profiles` itself takes precedence."
+        },
+        "ediLens.anonymise.rulesFile": {
+          "type": "string",
+          "default": ".edilens/anonymise.json",
+          "order": 14,
+          "markdownDescription": "Rule file for **Anonymise**: a path inside the workspace folder, or an absolute path. The file is optional; its rules come before the built-in profiles."
+        },
+        "ediLens.anonymise.envelopeIds": {
+          "type": "string",
+          "enum": ["pseudonymise", "keep"],
+          "enumDescriptions": ["Replace the sender and receiver ids of the envelope too. The same id in the body gets the same replacement.", "Leave the sender and receiver ids of the envelope as they are."],
+          "default": "pseudonymise",
+          "order": 14,
+          "markdownDescription": "What **Anonymise** does with the sender and receiver ids of the envelope (`UNB`, `UNG`, `ISA06`, `ISA08`, `GS02`, `GS03`, `MSH-3` to `MSH-6`). `pseudonymise` replaces them, so the first segment of a copy does not name the parties. Choose `keep` when a copy must still be routed by a test system that looks at these ids."
+        },
+        "ediLens.anonymise.copyUnchanged": {
+          "type": "boolean",
+          "default": false,
+          "order": 14,
+          "markdownDescription": "**Anonymise Folder** does not write a file in which no rule matched a value: such a file is not anonymised and is listed as unchanged. Turn this on to copy those files unchanged into the target folder as well (they are still listed as unchanged)."
+        },
+        "ediLens.rules.file": {
+          "type": "string",
+          "default": ".edilens/rules.json",
+          "order": 15,
+          "markdownDescription": "Partner rule file used by **Validate With Partner Rules** and **Validate Folder With Partner Rules**: a path inside the workspace folder, or an absolute path."
+        },
+        "ediLens.query.ignoreCase": {
+          "type": "boolean",
+          "default": false,
+          "order": 16,
+          "markdownDescription": "Treat upper and lower case letters as equal when **Query** compares text."
+        },
+        "ediLens.query.maxResults": {
+          "type": "integer",
+          "default": 1000,
+          "minimum": 1,
+          "maximum": 10000,
+          "order": 17,
+          "markdownDescription": "Largest number of matching messages that **Query** lists in one run."
+        },
+        "ediLens.envelope.startNumber": {
+          "type": "integer",
+          "default": 1,
+          "minimum": 1,
+          "maximum": 999999999,
+          "order": 18,
+          "markdownDescription": "First control number used by **Split Interchange Into Messages**, **Merge Messages Into One Interchange** and **Generate Acknowledgement**, and the value offered by **Renumber Control Numbers**."
+        },
+        "ediLens.envelope.x12Acknowledgement": {
+          "type": "string",
+          "enum": ["997", "999"],
+          "default": "997",
+          "order": 19,
+          "markdownDescription": "Transaction set that **Generate Acknowledgement** writes for an X12 file: `997` or `999`."
         }
       }
     }
