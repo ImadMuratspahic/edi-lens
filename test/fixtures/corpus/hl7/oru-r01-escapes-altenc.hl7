@@ -1,0 +1,7 @@
+MSH#*+!$#ADMITSYS#RIVERSIDE#LABPORTAL#CITYLAB#20240305101500##ORU*R01*ORU_R01#RS2403-0138#P#2.5.1
+PID#1##RS-4471902***RIVERSIDE*MR+0912345***NHP*MB+447190201***SSA*SS##Hartwell*Mira*J+Hartwell*M.*****A##19840712#F###18 Linden Walk**Millford*NY*12901+PO Box 77**Millford*NY*12901##555-0142*PRN*PH+555-0143*ORN*CP+mira.hartwell@example.invalid*NET*Internet
+OBR#1#ORD-240306-0120*RIVERSIDE##11502-2*Laboratory report*LN###20240306064500########2201*Okafor*Lena****MD
+OBX#1#FT#11502-2*Laboratory report*LN##Field separator !F! component !S! subcomponent !T! repetition !R! escape !E! in one text.!.br!Second paragraph with a line break !X0D0A! and highlighted !H!text!N! plus a unit 10!S!9/L.######F
+OBX#2#CE#12345-6*Specimen source*LN##BLDV$Blood venous$HL70070***$Left arm######F
+OBX#3#NM#2345-7*Glucose*LN##5.4#mmol/L#3.9-5.8#N+H###F
+NTE#1##Reported to the ward by telephone at 10:55.
