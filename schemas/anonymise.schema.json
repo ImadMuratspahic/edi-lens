@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EDI Lens anonymise rules",
+  "description": "Which values EDI Lens: Anonymise Message and Anonymise Folder replace, and how.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "profiles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["hl7-patient", "x12-healthcare", "x12-party", "edifact-party"] },
+      "description": "Built-in rule sets to use. When this list is present it replaces the setting ediLens.anonymise.profiles; an empty list switches the built-in rules off."
+    },
+    "rules": {
+      "type": "array",
+      "maxItems": 2000,
+      "description": "Your own rules. They come before the built-in profiles: the first rule that covers a value decides.",
+      "items": {
+        "type": "object",
+        "required": ["format", "path", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "format": { "enum": ["edifact", "x12", "hl7"] },
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9]{1,2}(\\[[^\\]]+\\])?-[0-9]+(\\([0-9]+\\))?(\\.[0-9]+(\\.[0-9]+)?)?$",
+            "description": "The value to replace: PID-5 (the whole element), PID-3.1 (one component), NM1[IL]-3 or NAD[BY]-3.1 (only in segments with that qualifier)."
+          },
+          "action": {
+            "enum": ["mask", "pseudonym", "fake-name", "fake-date", "keep", "blank"],
+            "enumDescriptions": [
+              "Letters become X and digits become 9; the length stays.",
+              "Letters and digits are replaced by other letters and digits; the same original always gives the same result; the length stays.",
+              "Like pseudonym, but the result reads like a name.",
+              "The date is moved by a number of days that is the same for the whole run, so the order of dates is kept.",
+              "The value is left as it is (use it to switch a built-in rule off for one path).",
+              "The value is emptied. This is the only action that changes the length of a value."
+            ]
+          }
+        }
+      }
+    }
+  }
+}

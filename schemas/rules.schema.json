@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EDI Lens partner rules",
+  "description": "Rules of one partner's implementation guide, checked by EDI Lens: Validate With Partner Rules.",
+  "type": "object",
+  "required": ["format", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string", "description": "Name of the guide, shown in messages and reports." },
+    "format": { "enum": ["edifact", "x12", "hl7"], "description": "The format the rules are written for." },
+    "messageTypes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Message types the rules apply to, for example ORDERS, 850 or ADT^A01 (ADT alone matches every ADT message). Leave out to check every message."
+    },
+    "rules": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": { "$ref": "#/definitions/rule" }
+    }
+  },
+  "definitions": {
+    "segmentSelector": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9]{1,2}(#[0-9]+)?(\\[[^\\]]+\\])?$",
+      "description": "A segment: NAD, NAD[BY] (first element is BY), NM1[IL|QC], OBX[3.1=2345-7] (element 3, component 1), LIN#2 (the second LIN of the message)."
+    },
+    "pathSelector": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9]{1,2}(#[0-9]+)?(\\[[^\\]]+\\])?-[0-9]+(\\([0-9]+\\))?(\\.[0-9]+(\\.[0-9]+)?)?$",
+      "description": "A value: SEG-element, SEG-element.component or SEG-element.component.subcomponent, with an optional qualifier in brackets: BGM-1.1, NAD[BY]-2.1, PID-5.1, PID-13(2).1."
+    },
+    "common": {
+      "properties": {
+        "id": { "type": "string", "maxLength": 60, "description": "Short id of the rule, shown in front of every violation." },
+        "message": { "type": "string", "maxLength": 500, "description": "The sentence shown for a violation. Without it EDI Lens writes one." },
+        "severity": { "enum": ["error", "warning", "info"], "default": "error" },
+        "messageTypes": { "type": "array", "items": { "type": "string" }, "description": "Limit this rule to some message types." },
+        "within": { "$ref": "#/definitions/segmentSelector", "description": "Check the rule once per group instead of once per message. A group starts at each segment named here and ends before the next segment with the same id." },
+        "until": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]{1,2}$" }, "description": "Segment ids that also end a group." }
+      }
+    },
+    "simpleRule": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["segment-required", "segment-forbidden", "occurrences", "element-required", "value-in", "pattern", "range", "date", "length"] },
+        "segment": { "$ref": "#/definitions/segmentSelector" },
+        "path": { "$ref": "#/definitions/pathSelector" },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "values": { "type": "array", "minItems": 1, "maxItems": 5000, "items": { "type": ["string", "number"] } },
+        "ignoreCase": { "type": "boolean", "default": false },
+        "pattern": { "type": "string", "maxLength": 300, "description": "A regular expression. Backreferences, lookarounds and a repeated group that contains a repetition, an optional part or an alternative are refused." },
+        "format": { "type": "string", "description": "Date format built from CCYY, YY, MM, DD, hh, mm, ss and separators, for example CCYYMMDD or CCYYMMDDhhmm." }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "enum": ["segment-required", "segment-forbidden", "occurrences"] } } }, "then": { "required": ["segment"] } },
+        { "if": { "properties": { "type": { "enum": ["element-required", "value-in", "pattern", "range", "date", "length"] } } }, "then": { "required": ["path"] } },
+        { "if": { "properties": { "type": { "const": "value-in" } } }, "then": { "required": ["values"] } },
+        { "if": { "properties": { "type": { "const": "pattern" } } }, "then": { "required": ["pattern"] } },
+        { "if": { "properties": { "type": { "const": "date" } } }, "then": { "required": ["format"] } },
+        { "if": { "properties": { "type": { "enum": ["occurrences", "range", "length"] } } }, "then": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }] } }
+      ]
+    },
+    "conditionRule": {
+      "type": "object",
+      "required": ["type", "if", "then"],
+      "properties": {
+        "type": { "const": "condition" },
+        "if": {
+          "type": "object",
+          "description": "The condition: a segment is present, a value is filled, or a value equals one of the listed values. \"not\": true reverses it.",
+          "properties": {
+            "segment": { "$ref": "#/definitions/segmentSelector" },
+            "path": { "$ref": "#/definitions/pathSelector" },
+            "equals": { "type": ["string", "number"] },
+            "in": { "type": "array", "minItems": 1, "items": { "type": ["string", "number"] } },
+            "not": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "then": { "$ref": "#/definitions/simpleRule", "description": "The rule that must hold when the condition is true." }
+      }
+    },
+    "equalRule": {
+      "type": "object",
+      "required": ["type", "left", "right"],
+      "properties": {
+        "type": { "const": "equal" },
+        "left": { "type": ["string", "number"], "description": "A path, count(SEG), sum(PATH) or a number." },
+        "right": { "type": ["string", "number"], "description": "A path, count(SEG), sum(PATH) or a number." },
+        "tolerance": { "type": "number", "minimum": 0, "description": "Largest difference between two numbers that still counts as equal." }
+      }
+    },
+    "rule": {
+      "allOf": [
+        { "$ref": "#/definitions/common" },
+        {
+          "oneOf": [
+            { "$ref": "#/definitions/simpleRule" },
+            { "$ref": "#/definitions/conditionRule" },
+            { "$ref": "#/definitions/equalRule" }
+          ]
+        }
+      ]
+    }
+  }
+}
