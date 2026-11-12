@@ -272,6 +272,9 @@ function createContext(text, format, maxIssues) {
     format,
     maxIssues,
     dropped: 0,
+    count: 0,
+    sink: null,
+    sinkError: null,
     issues: [],
     segments: [],
     counts: new Map(),
@@ -289,23 +292,104 @@ function addIssue(ctx, severity, code, message, offset, end, segmentIndex) {
   ctx.issues.push({ severity, code, message, offset, end, segmentIndex });
 }
 
-/** Appends a segment built from the range [offset, rawEnd) and returns it. */
+/**
+ * Appends a segment built from the range [offset, rawEnd) and returns it. `elements` is either
+ * the element list or a small record (see lazyRecord) from which the list is built on first
+ * access and then kept. A very large file therefore only costs memory for the segments that
+ * are read: validation reads the envelope segments, hovers and the outline read what is shown.
+ */
 function addSegment(ctx, id, offset, rawEnd, end, elements) {
   const occurrence = (ctx.counts.get(id) || 0) + 1;
   ctx.counts.set(id, occurrence);
   const segment = {
     id,
-    index: ctx.segments.length,
+    index: ctx.count,
     occurrence,
     offset,
     end,
     line: ctx.lineAt(offset),
     raw: ctx.text.slice(offset, rawEnd),
-    elements,
   };
-  ctx.segments.push(segment);
+  if (Array.isArray(elements)) {
+    segment.elements = elements;
+  } else {
+    // The record is hidden from JSON, Object.keys and comparisons. The accessor is one shared
+    // descriptor, so every segment keeps the same object shape.
+    Object.defineProperty(segment, LAZY, { value: elements, writable: true, enumerable: false, configurable: true });
+    Object.defineProperty(segment, 'elements', LAZY_ELEMENTS);
+  }
+  ctx.count++;
+  if (ctx.sink) {
+    try {
+      ctx.sink(segment);
+    } catch (err) {
+      ctx.sinkError = err;
+      throw err;
+    }
+  } else {
+    ctx.segments.push(segment);
+  }
   return segment;
 }
+
+/** Key of the hidden record that describes how to build the elements of a segment. */
+const LAZY = Symbol('elements');
+
+/**
+ * Describes the elements of a segment without building them: the text, the end of the id, the
+ * end of the data, the element (field) separator, the release character, the splitting rules
+ * and whether the segment is an HL7 header whose first two fields are the delimiters.
+ */
+function lazyRecord(text, idEnd, end, sep, release, seps, header) {
+  return { text, idEnd, end, sep, release, seps, header };
+}
+
+/** Builds the element list described by a record. */
+function buildElements(r) {
+  const elements = [];
+  if (r.idEnd >= r.end) {
+    return elements;
+  }
+  if (r.header) {
+    // Field 1 is the field separator itself, field 2 the encoding characters.
+    const fieldCode = r.sep.charCodeAt(0);
+    elements.push(buildElement(r.text, 1, r.idEnd, r.idEnd + 1, NO_SPLIT));
+    const encEnd = findCode(r.text, fieldCode, r.idEnd + 1, r.end);
+    elements.push(buildElement(r.text, 2, r.idEnd + 1, encEnd, NO_SPLIT));
+    if (encEnd < r.end) {
+      appendElements(elements, r.text, encEnd + 1, r.end, r.sep, '', r.seps, 3);
+    }
+    return elements;
+  }
+  appendElements(elements, r.text, r.idEnd + 1, r.end, r.sep, r.release, r.seps, 1);
+  return elements;
+}
+
+/** Stores `list` as a plain `elements` property of the segment and drops the record. */
+function setElements(segment, list) {
+  Object.defineProperty(segment, 'elements', { value: list, writable: true, enumerable: true, configurable: true });
+  segment[LAZY] = null;
+}
+
+/**
+ * The shared `elements` accessor: builds the list from the hidden record on first access and
+ * then replaces itself with an ordinary value. The property is enumerable, so a segment still
+ * serialises and compares like a plain object.
+ */
+const LAZY_ELEMENTS = {
+  enumerable: true,
+  configurable: true,
+  get: function () {
+    const record = this[LAZY];
+    const list = record ? buildElements(record) : [];
+    // A frozen segment cannot keep the list; it is then built again on every read.
+    try { setElements(this, list); } catch (e) { /* not extensible */ }
+    return list;
+  },
+  set: function (value) {
+    setElements(this, value);
+  },
+};
 
 /**
  * Makes the delimiters found in a header the active ones. The first header in
@@ -313,7 +397,7 @@ function addSegment(ctx, id, offset, rawEnd, end, elements) {
  * with different delimiters) only affect the segments that follow them.
  */
 function adoptDelimiters(ctx, current, derived) {
-  if (ctx.segments.length === 0) {
+  if (ctx.count === 0) {
     Object.assign(ctx.delimiters, derived);
     return ctx.delimiters;
   }
@@ -404,7 +488,7 @@ function parseEdifact(ctx, start) {
         'The UNA service string advice is incomplete or invalid; default delimiters are used.',
         pos,
         Math.min(len, pos + 9),
-        ctx.segments.length
+        ctx.count
       );
     }
 
@@ -445,7 +529,7 @@ function parseEdifact(ctx, start) {
         'The last segment has no segment terminator (' + describeChar(cur.segment) + ').',
         pos,
         rawEnd,
-        ctx.segments.length
+        ctx.count
       );
       if (danglingRelease) {
         addIssue(
@@ -455,7 +539,7 @@ function parseEdifact(ctx, start) {
           'The text ends with a release character that does not escape anything.',
           len - 1,
           len,
-          ctx.segments.length
+          ctx.count
         );
       }
     }
@@ -469,14 +553,11 @@ function parseEdifact(ctx, start) {
         'The segment has no id; it starts with a delimiter or is empty.',
         pos,
         Math.min(rawEnd + 1, len),
-        ctx.segments.length
+        ctx.count
       );
     }
-    const elements = [];
-    if (idEnd < rawEnd) {
-      appendElements(elements, text, idEnd + 1, rawEnd, cur.element, cur.release, seps, 1);
-    }
-    addSegment(ctx, text.slice(pos, idEnd), pos, rawEnd, segEnd, elements);
+    // The delimiters in force for this segment are recorded, as a later UNA may change them.
+    addSegment(ctx, text.slice(pos, idEnd), pos, rawEnd, segEnd, lazyRecord(text, idEnd, rawEnd, cur.element, cur.release, seps, false));
     pos = terminated ? segEnd : len;
   }
 }
@@ -562,17 +643,17 @@ function parseX12(ctx, start) {
           'The ISA header is shorter than 106 characters or has invalid separators; default delimiters are used.',
           pos,
           Math.min(len, pos + ISA_LENGTH),
-          ctx.segments.length
+          ctx.count
         );
         // A short header still shows its element separator in the fourth character.
-        if (ctx.segments.length === 0 && pos + 3 < len) {
+        if (ctx.count === 0 && pos + 3 < len) {
           const guess = text[pos + 3];
           if (!isAlphaNumericCode(guess.charCodeAt(0)) && guess.charCodeAt(0) > 32) {
             cur.element = guess;
           }
         }
       }
-    } else if (ctx.segments.length === 0) {
+    } else if (ctx.count === 0) {
       addIssue(
         ctx,
         'error',
@@ -601,7 +682,7 @@ function parseX12(ctx, start) {
         'The last segment has no segment terminator (' + describeChar(cur.segment) + ').',
         pos,
         rawEnd,
-        ctx.segments.length
+        ctx.count
       );
     }
 
@@ -614,15 +695,12 @@ function parseX12(ctx, start) {
         'The segment has no id; it starts with a delimiter or is empty.',
         pos,
         Math.min(rawEnd + 1, len),
-        ctx.segments.length
+        ctx.count
       );
     }
-    const elements = [];
-    if (idEnd < rawEnd) {
-      // ISA elements 11 and 16 are delimiter characters, so ISA is never split further.
-      appendElements(elements, text, idEnd + 1, rawEnd, cur.element, '', isIsa ? NO_SPLIT : seps, 1);
-    }
-    addSegment(ctx, text.slice(pos, idEnd), pos, rawEnd, segEnd, elements);
+    // ISA elements 11 and 16 are delimiter characters, so ISA is never split further. The
+    // delimiters in force for this segment are recorded, as a later ISA may change them.
+    addSegment(ctx, text.slice(pos, idEnd), pos, rawEnd, segEnd, lazyRecord(text, idEnd, rawEnd, cur.element, '', isIsa ? NO_SPLIT : seps, false));
     pos = terminated ? segEnd : len;
   }
 }
@@ -730,10 +808,10 @@ function parseHl7(ctx, start) {
           'The encoding characters have fewer than four characters; defaults are used for the missing ones.',
           s + 4,
           Math.min(le, s + 4 + 4),
-          ctx.segments.length
+          ctx.count
         );
       }
-    } else if (ctx.segments.length === 0) {
+    } else if (ctx.count === 0) {
       addIssue(
         ctx,
         'error',
@@ -755,25 +833,12 @@ function parseHl7(ctx, start) {
         'The segment has no id; it starts with a delimiter.',
         s,
         Math.min(le + 1, len),
-        ctx.segments.length
+        ctx.count
       );
     }
     const id = text.slice(s, idEnd);
-    const elements = [];
-    if (idEnd < le) {
-      if (HL7_HEADER_IDS.indexOf(id) !== -1) {
-        // Field 1 is the field separator itself, field 2 the encoding characters.
-        elements.push(buildElement(text, 1, idEnd, idEnd + 1, NO_SPLIT));
-        const encEnd = findCode(text, fieldCode, idEnd + 1, le);
-        elements.push(buildElement(text, 2, idEnd + 1, encEnd, NO_SPLIT));
-        if (encEnd < le) {
-          appendElements(elements, text, encEnd + 1, le, cur.field, '', seps, 3);
-        }
-      } else {
-        appendElements(elements, text, idEnd + 1, le, cur.field, '', seps, 1);
-      }
-    }
-    addSegment(ctx, id, s, le, lineEnd, elements);
+    // The delimiters in force for this segment are recorded, as a later MSH may change them.
+    addSegment(ctx, id, s, le, lineEnd, lazyRecord(text, idEnd, le, cur.field, '', seps, HL7_HEADER_IDS.indexOf(id) !== -1));
     pos = lineEnd;
   }
 }
@@ -804,7 +869,7 @@ function describeChar(ch) {
  * the number of syntax issues that are recorded. This function never throws:
  * unusable input produces a Message with issues and possibly zero segments.
  */
-function parse(text, opts) {
+function run(text, opts, sink) {
   const options = opts || {};
   const source = typeof text === 'string' ? text : text === null || text === undefined ? '' : String(text);
   const maxIssues =
@@ -823,6 +888,7 @@ function parse(text, opts) {
   }
 
   const ctx = createContext(source, format, maxIssues);
+  ctx.sink = typeof sink === 'function' ? sink : null;
   try {
     if (unknown) {
       if (skipBlank(source, 0) >= source.length) {
@@ -850,6 +916,11 @@ function parse(text, opts) {
       }
     }
   } catch (err) {
+    // A failure of the caller's own segment handler is the caller's to deal with: a tool that
+    // stopped half way must never look as if it had finished.
+    if (ctx.sinkError) {
+      throw ctx.sinkError;
+    }
     ctx.issues.push({
       severity: 'error',
       code: 'parse-failed',
@@ -876,7 +947,47 @@ function parse(text, opts) {
     text: source,
     segments: ctx.segments,
     issues: ctx.issues,
+    count: ctx.count,
   };
 }
 
-module.exports = { parse, defaultDelimiters, DEFAULT_MAX_ISSUES };
+function parse(text, opts) {
+  const result = run(text, opts, null);
+  delete result.count;
+  return result;
+}
+
+/**
+ * Reads the same segments as parse() but hands each one to onSegment(segment) instead of keeping
+ * it, so a very large text can be worked through with a small, constant amount of memory. The
+ * segments have the same shape as in parse() (elements are built on first access). Returns
+ * { format, delimiters, text, issues, count } where count is the number of segments read. An
+ * error thrown by onSegment ends the reading and is thrown on to the caller.
+ */
+function parseStream(text, opts, onSegment) {
+  const result = run(text, opts, onSegment);
+  delete result.segments;
+  return result;
+}
+
+/**
+ * Returns the elements of a segment without keeping them on the segment when they have not been
+ * built yet, so that reading every segment of a large message once does not hold all of them.
+ */
+function readElements(segment) {
+  const record = segment[LAZY];
+  return record ? buildElements(record) : segment.elements;
+}
+
+/**
+ * Returns the delimiters that were in force for a segment: { element, release, component,
+ * repetition, subcomponent }, or null when they are no longer known (the elements were already
+ * built and kept; the delimiters of the message then apply).
+ */
+function segmentDelimiters(segment) {
+  const r = segment[LAZY];
+  if (!r) return null;
+  return { element: r.sep, release: r.release, component: r.seps.comp, repetition: r.seps.rep, subcomponent: r.seps.sub };
+}
+
+module.exports = { parse, parseStream, readElements, segmentDelimiters, defaultDelimiters, DEFAULT_MAX_ISSUES };

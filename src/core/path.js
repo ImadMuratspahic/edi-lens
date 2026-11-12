@@ -220,7 +220,10 @@ function locate(message, offset, opts) {
     return { segment, element, path: formatPath(segment, element.index) };
   }
 
-  let subcomponent = component.subcomponents[0];
+  // A component with a single subcomponent is its own subcomponent. With several, the offset
+  // must lie inside one of them; on the separator between two subcomponents the enclosing
+  // component is reported instead.
+  let subcomponent = component.subcomponents.length === 1 ? component.subcomponents[0] : null;
   for (const sub of component.subcomponents) {
     if (within(offset, sub.offset, sub.end, inclusive)) {
       subcomponent = sub;
@@ -230,7 +233,7 @@ function locate(message, offset, opts) {
 
   const repNo = element.repetitions.indexOf(repetition) + 1;
   const repArg = element.repetitions.length > 1 ? repNo : undefined;
-  const subArg = component.subcomponents.length > 1 ? subcomponent.index : undefined;
+  const subArg = subcomponent && component.subcomponents.length > 1 ? subcomponent.index : undefined;
   const compArg = repetition.components.length > 1 || subArg !== undefined ? component.index : undefined;
   return {
     segment,
