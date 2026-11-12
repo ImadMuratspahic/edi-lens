@@ -45,13 +45,19 @@ const LOADERS = {
   diff: function () { return require('./pro/diff'); },
   exporter: function () { return require('./pro/export'); },
   dictionary: function () { return require('./pro/dictionary'); },
-  workspace: function () { return require('./pro/workspace'); }
+  workspace: function () { return require('./pro/workspace'); },
+  anonymise: function () { return require('./pro/anonymise'); },
+  rules: function () { return require('./pro/rules'); },
+  query: function () { return require('./pro/query'); },
+  envelope: function () { return require('./pro/envelope'); },
+  protools: function () { return require('./protools'); }
 };
 const loaded = {};
 
 /** Loads one module by short name ('parse', 'diff', ...). Returns null when it cannot be loaded. */
 function loadModule(name) {
   if (loaded[name]) return loaded[name];
+  if (!Object.prototype.hasOwnProperty.call(LOADERS, name)) return null;
   try {
     loaded[name] = LOADERS[name]();
     return loaded[name];
@@ -88,7 +94,11 @@ function getPro() {
     diff: loadModule('diff'),
     exporter: loadModule('exporter'),
     dictionary: loadModule('dictionary'),
-    workspace: loadModule('workspace')
+    workspace: loadModule('workspace'),
+    anonymise: loadModule('anonymise'),
+    rules: loadModule('rules'),
+    query: loadModule('query'),
+    envelope: loadModule('envelope')
   };
 }
 
@@ -101,9 +111,14 @@ function getPro() {
  */
 function shorten(value, max) {
   const limit = max > 1 ? max : 40;
-  const clean = String(value === undefined || value === null ? '' : value).replace(/[\u0000-\u001f\u007f]/g, '·');
+  let text = String(value === undefined || value === null ? '' : value);
+  // Only the start of a very long value can appear in the result, so the rest is not examined
+  // (a value of several megabytes would otherwise be copied and split into code points).
+  const cut = text.length > limit * 2 + 2;
+  if (cut) text = text.slice(0, limit * 2 + 2);
+  const clean = text.replace(/[\u0000-\u001f\u007f]/g, '·');
   const chars = Array.from(clean);
-  if (chars.length <= limit) return clean;
+  if (!cut && chars.length <= limit) return clean;
   return chars.slice(0, limit - 1).join('') + '…';
 }
 

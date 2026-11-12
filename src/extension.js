@@ -3,6 +3,7 @@
 // keeps a failure in one part from taking the others down.
 
 const vscode = require('vscode');
+const os = require('node:os');
 const fmt = require('./format');
 const { createLicence } = require('./licence/licence');
 const { createDiagnostics } = require('./diagnostics');
@@ -43,22 +44,44 @@ function activate(context) {
       autoDetectLanguage: c.get('autoDetectLanguage', true) !== false,
       workspaceInclude: String(c.get('workspace.include', '**/*.{edi,edifact,edf,x12,x12edi,hl7}') || '**/*.{edi,edifact,edf,x12,x12edi,hl7}'),
       workspaceExclude: String(c.get('workspace.exclude', '**/{node_modules,.git,.hg,.svn}/**') || '**/{node_modules,.git,.hg,.svn}/**'),
-      exportNeutraliseFormulas: c.get('export.neutraliseFormulas', false) === true,
+      exportNeutraliseFormulas: c.get('export.neutraliseFormulas', true) !== false,
       compare: {
         ignoreSegments: stringList(c.get('compare.ignoreSegments', [])),
         ignorePaths: stringList(c.get('compare.ignorePaths', [])),
         ignoreCase: c.get('compare.ignoreCase', false) === true,
         trimValues: c.get('compare.trimValues', false) === true
       },
-      licenceMode: c.get('licenceMode', 'live')
+      anonymise: {
+        rulesFile: String(c.get('anonymise.rulesFile', '.edilens/anonymise.json') || '.edilens/anonymise.json'),
+        profiles: stringList(c.get('anonymise.profiles', ['hl7-patient', 'x12-healthcare', 'x12-party', 'edifact-party'])),
+        envelopeIds: c.get('anonymise.envelopeIds', 'pseudonymise') === 'keep' ? 'keep' : 'pseudonymise',
+        copyUnchanged: c.get('anonymise.copyUnchanged', false) === true
+      },
+      rules: { file: String(c.get('rules.file', '.edilens/rules.json') || '.edilens/rules.json') },
+      query: {
+        ignoreCase: c.get('query.ignoreCase', false) === true,
+        maxResults: Math.floor(numberSetting(c.get('query.maxResults', 1000), 1000, 1, 10000))
+      },
+      envelope: {
+        startNumber: Math.floor(numberSetting(c.get('envelope.startNumber', 1), 1, 1, 999999999)),
+        x12Acknowledgement: c.get('envelope.x12Acknowledgement', '997') === '999' ? '999' : '997'
+      }
     };
     return settingsCache;
   }
 
+  // The licence server environment is fixed to the live one. No setting, command or other part
+  // of the user interface can change it. Only a development host of the extension (the editor
+  // started on its source folder for debugging, never an installed copy) that was started with
+  // EDI_LENS_LICENCE_MODE=test uses the provider's test environment.
+  const development = vscode.ExtensionMode !== undefined && context.extensionMode !== undefined &&
+    context.extensionMode !== vscode.ExtensionMode.Production;
+  const licenceMode = development && process.env.EDI_LENS_LICENCE_MODE === 'test' ? 'test' : 'live';
+
   const licence = createLicence({
     secrets: context.secrets,
     globalState: context.globalState,
-    getMode: function () { return getSettings().licenceMode; }
+    getMode: function () { return licenceMode; }
   });
 
   const messages = fmt.createMessageCache();
@@ -76,6 +99,9 @@ function activate(context) {
     getSettings: getSettings,
     getCore: fmt.getCore,
     getPro: fmt.getPro,
+    // Version and platform facts for "Report A Problem" (never a host name or a user name).
+    extensionVersion: (context.extension && context.extension.packageJSON && context.extension.packageJSON.version) || require('../package.json').version,
+    osRelease: function () { try { return os.release(); } catch (e) { return ''; } },
 
     // True when the document is larger than the size limit (cached per document version).
     isTooLarge: function (document) {
@@ -93,11 +119,12 @@ function activate(context) {
       return messages.get(document, document.version, function () { return document.getText(); });
     },
 
-    // The dictionary to use for a message: Pro only, and only for the dictionary's own format.
+    // The dictionary to use for a message: Pro (licence or running trial) only, and only for the
+    // dictionary's own format. Reading never starts the trial.
     dictionaryFor: async function (message) {
       const d = app.state.dictionary;
       if (!d || !message || d.format !== message.format) return null;
-      return (await licence.isPro()) ? d : null;
+      return (await licence.hasAccess()) ? d : null;
     },
 
     setDictionary: async function (dictionary, uriText) {
@@ -109,7 +136,7 @@ function activate(context) {
     restoreDictionary: async function () {
       const stored = context.workspaceState.get(DICTIONARY_KEY);
       if (!stored) { app.state.dictionary = null; return; }
-      if (!(await licence.isPro())) { app.state.dictionary = null; return; }
+      if (!(await licence.hasAccess())) { app.state.dictionary = null; return; }
       try {
         const pro = fmt.getPro();
         if (!pro.dictionary) return;
@@ -150,6 +177,11 @@ function activate(context) {
   install('language detection', function () { return registerAutoDetect(app); });
   app.diagnostics = install('diagnostics', function () { return createDiagnostics(app); });
   app.tree = install('outline', function () { return createTree(app); });
+  install('Pro tools', function () {
+    const tools = fmt.loadModule('protools');
+    if (!tools || !app.proHelpers) throw new Error('the module could not be loaded');
+    return tools.registerProTools(app, app.proHelpers);
+  });
   install('hover', function () { return registerHover(app); });
   install('formatting', function () {
     return fmt.registerFormatting(vscode, function (document) { return app.getMessage(document, false); });
@@ -164,7 +196,7 @@ function activate(context) {
   }
 
   // Warm the licence cache and restore the remembered dictionary without delaying start-up. A
-  // machine without a stored key makes no network request here.
+  // machine without a stored key makes no network request here, and the trial is only read.
   app.afterLicenceChange().then(undefined, function (err) {
     log('Start-up licence check failed: ' + (err && err.message ? err.message : err));
   });
