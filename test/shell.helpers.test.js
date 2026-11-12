@@ -118,21 +118,34 @@ test('segmentPickItems lists segments with occurrence, line and a preview', () =
 });
 
 test('licence status text covers every state', () => {
-  const base = { mode: 'live', keyHint: '...abcd', lastGoodAt: Date.UTC(2026, 0, 2), graceEndsAt: Date.UTC(2026, 0, 16) };
-  assert.match(commands.licenceStatusText(Object.assign({}, base, { pro: true, via: 'server', hasKey: true })), /Pro is active on this machine \(key \.\.\.abcd\)/);
+  const base = { mode: 'live', keyHint: '...abcd', lastGoodAt: Date.UTC(2026, 0, 2), graceEndsAt: Date.UTC(2026, 0, 16), trial: { state: 'unused' } };
+  assert.match(commands.licenceStatusText(Object.assign({}, base, { pro: true, via: 'server', hasKey: true })), /Pro is active on this computer \(key \.\.\.abcd\)/);
   assert.match(commands.licenceStatusText(Object.assign({}, base, { pro: true, via: 'grace', hasKey: true })), /offline mode/);
   assert.match(commands.licenceStatusText(Object.assign({}, base, { pro: false, via: 'rejected', hasKey: true })), /no longer valid/);
   assert.match(commands.licenceStatusText(Object.assign({}, base, { pro: false, via: 'expired', hasKey: true })), /more than 14 days/);
   assert.match(commands.licenceStatusText(Object.assign({}, base, { pro: false, via: 'none', hasKey: false })), /EDI Lens Free/);
   assert.match(commands.licenceStatusText(Object.assign({}, base, { mode: 'test', pro: false, via: 'none', hasKey: false })), /test environment/);
+  const active = { state: 'active', daysLeft: 9, endsAt: Date.UTC(2026, 0, 20), startedAt: Date.UTC(2026, 0, 6) };
+  assert.match(commands.licenceStatusText(Object.assign({}, base, { pro: false, via: 'none', hasKey: false, trial: active })), /Pro trial: 9 days left/);
+  assert.match(commands.licenceStatusText(Object.assign({}, base, { pro: false, via: 'none', hasKey: false, trial: Object.assign({}, active, { daysLeft: 1 }) })), /1 day left/);
+  assert.match(commands.licenceStatusText(Object.assign({}, base, { pro: false, via: 'none', hasKey: false, trial: Object.assign({}, active, { state: 'expired', daysLeft: 0 }) })), /trial ended on/);
+  // A licence always wins over the trial text.
+  assert.match(commands.licenceStatusText(Object.assign({}, base, { pro: true, via: 'cache', hasKey: true, trial: active })), /Pro is active on this computer/);
 });
 
 test('activation failure texts are specific and never mention internals', () => {
-  assert.match(commands.activationFailureText({ reason: 'limit' }), /maximum number of machines/);
+  assert.match(commands.activationFailureText({ reason: 'limit' }), /maximum number of computers \(3\)/);
   assert.match(commands.activationFailureText({ reason: 'invalid' }), /not recognised/);
+  assert.match(commands.activationFailureText({ reason: 'inactive' }), /not active \(expired, disabled or refunded\)/);
   assert.match(commands.activationFailureText({ reason: 'network' }), /could not be reached/);
+  assert.match(commands.activationFailureText({ reason: 'storage' }), /secret storage/);
   assert.match(commands.activationFailureText({ reason: 'error', status: 500 }), /HTTP 500/);
-  assert.match(commands.activationFailureText({ reason: 'error' }), /try again later/);
+  assert.match(commands.activationFailureText({ reason: 'error' }), /try again in a few minutes/);
+  for (const reason of ['limit', 'invalid', 'inactive', 'network', 'storage', 'error']) {
+    const text = commands.activationFailureText({ reason: reason });
+    assert.ok(!/undefined|null|\[object/.test(text), reason);
+    assert.ok(/\.$/.test(text), reason + ' ends with a full stop');
+  }
 });
 
 test('tree: segment descriptors carry label, preview and range', () => {

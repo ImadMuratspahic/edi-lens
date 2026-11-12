@@ -41,8 +41,8 @@ function boot(options) {
   globalThis.fetch = async (url, init) => {
     const p = new URL(url).pathname;
     const body = JSON.parse(init.body);
-    calls.push({ path: p, body });
-    if (p === '/licenses/activate') return { status: 200, json: async () => ({ id: 'inst-1' }) };
+    calls.push({ path: p, body, host: new URL(url).host });
+    if (p === '/licenses/activate') return { status: 200, json: async () => ({ id: 'inst-1', product: { product_id: 'pdt_0NriIrMqPm9xOakMMZtw4', name: 'EDI Lens Pro' } }) };
     if (p === '/licenses/validate') return { status: 200, json: async () => ({ valid: true }) };
     return { status: 204, json: async () => { throw new Error('empty'); } };
   };
@@ -50,7 +50,7 @@ function boot(options) {
   if (o.active) state.activeTextEditor = o.active;
 
   const extension = require('../src/extension');
-  const ctx = makeContext();
+  const ctx = makeContext(o.extensionMode);
   extension.activate(ctx);
   return {
     vscode, state, ctx, calls,
@@ -76,8 +76,9 @@ test('activation registers every contributed command, provider and view without 
     assert.equal(app.state.hoverProviders.length, 3);
     assert.equal(app.state.formattingProviders.length, 3);
     assert.deepEqual(app.state.hoverProviders.map((h) => h.selector.language).sort(), ['edifact', 'hl7', 'x12']);
-    assert.equal(app.state.treeViews.length, 1);
+    assert.equal(app.state.treeViews.length, 2);
     assert.equal(app.state.treeViews[0].id, 'ediLens.outline');
+    assert.equal(app.state.treeViews[1].id, 'ediLens.queryResults');
     assert.equal(app.state.statusItems.length, 1);
     assert.equal(app.state.outputChannels.length, 0, 'no start-up failure was logged');
     assert.equal(app.calls.length, 0, 'no network request without a licence key');
@@ -208,7 +209,7 @@ test('formatting commands refuse files without segments and other languages', as
     const txt = open('hello', 'plaintext', 'a.txt');
     app.state.activeTextEditor = makeEditor(txt);
     await app.run('ediLens.minify');
-    assert.match(app.state.warnMessages.at(-1).text, /Open an EDIFACT, X12 or HL7 v2 file first/);
+    assert.match(app.state.warnMessages.at(-1).text, /needs a UN\/EDIFACT, ANSI X12 or HL7 v2 file in the active editor/);
   } finally { app.stop(); }
 });
 
@@ -403,23 +404,145 @@ test('reveal command selects the range in the document', async () => {
   } finally { app.stop(); }
 });
 
-test('Pro commands show one clear message with Buy and Enter Key buttons when there is no licence', async () => {
+// Puts the trial of a booted stand-in into the past, as if it had been started `daysAgo` days ago.
+async function ageTrial(app, daysAgo) {
+  const t = Date.now() - daysAgo * 24 * 3600 * 1000;
+  await app.ctx.globalState.update('trial.startedAt', t);
+  await app.ctx.globalState.update('trial.lastSeenAt', t);
+  await app.ctx.globalState.update('trial.lastNoticeAt', undefined);
+}
+
+test('Pro commands show one clear message with Buy and Enter Key buttons when there is no licence and the trial is over', async () => {
   const doc = open(X12_BAD, 'x12', 'pro.x12');
   const app = boot({ documents: [doc], active: makeEditor(doc) });
   try {
+    await ageTrial(app, 20);
     for (const id of ['ediLens.compare', 'ediLens.exportJson', 'ediLens.exportCsv', 'ediLens.exportXml', 'ediLens.validateWorkspace', 'ediLens.loadDictionary', 'ediLens.batchPrettyPrint']) {
       app.state.infoMessages.length = 0;
       await app.run(id);
       assert.equal(app.state.infoMessages.length, 1, id);
       assert.match(app.state.infoMessages[0].text, /is an EDI Lens Pro feature/);
+      assert.match(app.state.infoMessages[0].text, /trial ended on/);
       assert.deepEqual(app.state.infoMessages[0].buttons, ['Buy Pro', 'Enter Licence Key']);
     }
     assert.equal(app.state.openedDocuments.length, 0);
     assert.equal(app.calls.length, 0);
 
     app.state.infoAnswer = (text, buttons) => (buttons.includes('Buy Pro') ? 'Buy Pro' : undefined);
+    app.state.quickPickAnswer = (items) => items.find((i) => i.tier === 'personal');
     await app.run('ediLens.exportJson');
     assert.ok(String(app.state.opened).includes('checkout'), 'Buy Pro opens the checkout link');
+  } finally { app.stop(); }
+});
+
+test('the first Pro command starts the 14-day trial on this computer, with one message and no network', async () => {
+  const doc = open(EDIFACT_ORDERS, 'edifact', 'trial.edi');
+  const app = boot({ documents: [doc], active: makeEditor(doc) });
+  try {
+    assert.equal(app.ctx.globalState.get('trial.startedAt'), undefined, 'install alone starts nothing');
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.exportJson');
+    assert.equal(app.state.openedDocuments.length, 1, 'the export ran');
+    const started = app.state.infoMessages.find((m) => /trial of EDI Lens Pro has started/.test(m.text));
+    assert.ok(started, JSON.stringify(app.state.infoMessages.map((m) => m.text)));
+    assert.deepEqual(started.buttons, ['Buy Pro', 'Enter Licence Key']);
+    assert.match(started.text, /recorded only on this computer/);
+    assert.ok(typeof app.ctx.globalState.get('trial.startedAt') === 'number');
+    assert.equal(app.calls.length, 0, 'the trial makes no network request');
+
+    // The second command in the same day runs without any further message.
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.exportCsv');
+    assert.equal(app.state.openedDocuments.length, 2);
+    assert.deepEqual(app.state.infoMessages.filter((m) => /trial/.test(m.text)), [], 'no second notice on the same day');
+
+    // Show Licence Status reports the days left.
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.licenceStatus');
+    assert.match(app.state.infoMessages[0].text, /Pro trial: 14 days left/);
+    assert.deepEqual(app.state.infoMessages[0].buttons, ['Buy Pro', 'Enter Licence Key', 'Lost your key?']);
+    assert.equal(app.calls.length, 0);
+  } finally { app.stop(); }
+});
+
+test('during the trial a reminder with the days left appears at most once a day', async () => {
+  const doc = open(EDIFACT_ORDERS, 'edifact', 'trial2.edi');
+  const app = boot({ documents: [doc], active: makeEditor(doc) });
+  try {
+    await ageTrial(app, 5);
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.exportJson');
+    assert.equal(app.state.openedDocuments.length, 1);
+    const reminders = app.state.infoMessages.filter((m) => /Pro trial: 9 days left/.test(m.text));
+    assert.equal(reminders.length, 1, JSON.stringify(app.state.infoMessages.map((m) => m.text)));
+    assert.match(reminders[0].text, /at most once a day/);
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.exportXml');
+    await app.run('ediLens.exportJson');
+    assert.equal(app.state.openedDocuments.length, 3);
+    assert.equal(app.state.infoMessages.filter((m) => /trial/.test(m.text)).length, 0, 'no further reminder today');
+    // Yesterday's reminder does not block today's.
+    await app.ctx.globalState.update('trial.lastNoticeAt', Date.now() - 25 * 3600 * 1000);
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.exportJson');
+    assert.equal(app.state.infoMessages.filter((m) => /days left/.test(m.text)).length, 1);
+  } finally { app.stop(); }
+});
+
+test('after the trial Pro commands stop, the status says so, and a licence key overrides the trial', async () => {
+  const doc = open(EDIFACT_ORDERS, 'edifact', 'trial3.edi');
+  const app = boot({ documents: [doc], active: makeEditor(doc) });
+  try {
+    await ageTrial(app, 14);
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.exportJson');
+    assert.equal(app.state.openedDocuments.length, 0, 'nothing exported after the trial');
+    assert.match(app.state.infoMessages[0].text, /Export is an EDI Lens Pro feature\. Your 14-day trial ended on/);
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.licenceStatus');
+    assert.match(app.state.infoMessages[0].text, /EDI Lens Free\. Your 14-day Pro trial ended on/);
+    assert.match(app.state.infoMessages[0].text, /one-time purchase: Personal USD 29, Business USD 59 per user; each key works on up to 3 computers/);
+    // A key unlocks Pro again; the trial record is left alone.
+    app.state.inputAnswer = KEY;
+    await app.run('ediLens.enterKey');
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.exportJson');
+    assert.equal(app.state.openedDocuments.length, 1);
+    assert.deepEqual(app.state.infoMessages.filter((m) => /trial/.test(m.text)), []);
+    await app.run('ediLens.licenceStatus');
+    assert.match(app.state.infoMessages.at(-1).text, /Pro is active on this computer/);
+    assert.ok(app.ctx.globalState.get('trial.startedAt'));
+  } finally { app.stop(); }
+});
+
+test('a dictionary remembered for the workspace is used during the trial but never starts it', async () => {
+  const doc = open(EDIFACT_ORDERS, 'edifact', 'trial4.edi');
+  const app = boot({ documents: [doc], active: makeEditor(doc) });
+  try {
+    const file = Uri.file('/work/dict-trial.json');
+    app.state.files.set(file.toString(), bytes(JSON.stringify({ format: 'edifact', name: 'T', segments: { BGM: { name: 'Trial name' } } })));
+    await app.ctx.workspaceState.update('ediLens.dictionaryUri', file.toString());
+    const provider = app.state.hoverProviders[0].provider;
+    let hover = await provider.provideHover(doc, doc.positionAt(doc.getText().indexOf('BGM+220') + 5));
+    assert.ok(!/Trial name/.test(hover.contents.value), 'no trial, no names');
+    assert.equal(app.ctx.globalState.get('trial.startedAt'), undefined, 'hovering never starts the trial');
+    await app.run('ediLens.exportJson');
+    hover = await provider.provideHover(doc, doc.positionAt(doc.getText().indexOf('BGM+220') + 5));
+    assert.match(hover.contents.value, /Trial name/);
+  } finally { app.stop(); }
+});
+
+test('when the editor storage refuses the trial, the Pro notice explains it and nothing is recorded', async () => {
+  const doc = open(EDIFACT_ORDERS, 'edifact', 'trial5.edi');
+  const app = boot({ documents: [doc], active: makeEditor(doc) });
+  try {
+    app.ctx.globalState.update = async () => { throw new Error('read-only'); };
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.exportJson');
+    assert.equal(app.state.openedDocuments.length, 0);
+    assert.match(app.state.infoMessages[0].text, /trial could not be started because the editor's storage is not writable/);
+    assert.deepEqual(app.state.infoMessages[0].buttons, ['Buy Pro', 'Enter Licence Key']);
+    assert.equal(app.ctx.globalState.get('trial.startedAt'), undefined);
   } finally { app.stop(); }
 });
 
@@ -429,7 +552,7 @@ test('licence flow: enter key, use Pro features, check status, remove', async ()
   try {
     app.state.inputAnswer = KEY;
     await app.run('ediLens.enterKey');
-    assert.match(app.state.infoMessages.at(-1).text, /EDI Lens Pro is now active/);
+    assert.match(app.state.infoMessages.at(-1).text, /EDI Lens Pro is now active on this computer \(Personal licence\)/);
     assert.equal(app.calls[0].path, '/licenses/activate');
     assert.equal(app.calls[0].body.name, 'VS Code on ' + ({ win32: 'Windows', darwin: 'macOS', linux: 'Linux' }[process.platform] || process.platform));
     assert.equal(app.calls[0].body.license_key, KEY);
@@ -450,12 +573,14 @@ test('licence flow: enter key, use Pro features, check status, remove', async ()
 
     app.state.infoMessages.length = 0;
     await app.run('ediLens.licenceStatus');
-    assert.match(app.state.infoMessages.at(-1).text, /Pro is active on this machine \(key \.\.\.0001\)/);
+    assert.match(app.state.infoMessages.at(-1).text, /Pro is active on this computer \(Personal licence, key \.\.\.0001\)/);
+    assert.deepEqual(app.state.infoMessages.at(-1).buttons, ['Remove Licence']);
 
     app.state.warnAnswer = 'Remove Licence';
     await app.run('ediLens.removeLicence');
     assert.equal(app.calls.at(-1).path, '/licenses/deactivate');
-    assert.match(app.state.infoMessages.at(-1).text, /removed from this machine and the activation was freed/);
+    assert.match(app.state.infoMessages.at(-1).text, /removed from this computer and the activation was freed/);
+    await ageTrial(app, 30);
     app.state.infoMessages.length = 0;
     await app.run('ediLens.exportJson');
     assert.match(app.state.infoMessages[0].text, /Pro feature/);
@@ -466,13 +591,16 @@ test('entering a wrong key shows the specific reason and changes nothing', async
   const doc = open(EDIFACT_ORDERS, 'edifact', 'bad-key.edi');
   const app = boot({ documents: [doc], active: makeEditor(doc) });
   try {
-    globalThis.fetch = async () => ({ status: 403, json: async () => ({}) });
+    globalThis.fetch = async () => ({ status: 404, json: async () => ({}) });
     app.state.inputAnswer = 'nope-nope';
     await app.run('ediLens.enterKey');
-    assert.match(app.state.errorMessages.at(-1), /not recognised or is no longer active/);
+    assert.match(app.state.errorMessages.at(-1), /not recognised/);
+    globalThis.fetch = async () => ({ status: 403, json: async () => ({}) });
+    await app.run('ediLens.enterKey');
+    assert.match(app.state.errorMessages.at(-1), /not active \(expired, disabled or refunded\)/);
     globalThis.fetch = async () => ({ status: 422, json: async () => ({}) });
     await app.run('ediLens.enterKey');
-    assert.match(app.state.errorMessages.at(-1), /maximum number of machines/);
+    assert.match(app.state.errorMessages.at(-1), /maximum number of computers/);
     globalThis.fetch = async () => { throw new Error('offline'); };
     await app.run('ediLens.enterKey');
     assert.match(app.state.errorMessages.at(-1), /could not be reached/);
@@ -483,23 +611,114 @@ test('entering a wrong key shows the specific reason and changes nothing', async
     app.state.infoMessages.length = 0;
     await app.run('ediLens.licenceStatus');
     assert.match(app.state.infoMessages[0].text, /EDI Lens Free\. No licence key is stored/);
-    assert.deepEqual(app.state.infoMessages[0].buttons, ['Buy Pro', 'Enter Licence Key']);
+    assert.match(app.state.infoMessages[0].text, /starts a free 14-day trial/);
+    assert.deepEqual(app.state.infoMessages[0].buttons, ['Buy Pro', 'Enter Licence Key', 'Lost your key?']);
+    // "Lost your key?" explains where the key is and offers the key box and the issue page.
+    app.state.infoAnswer = (text, buttons) => (buttons.includes('Lost your key?') ? 'Lost your key?' : undefined);
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.licenceStatus');
+    const lost = app.state.infoMessages.find((m) => /e-mailed to the address you entered at checkout/.test(m.text));
+    assert.ok(lost, JSON.stringify(app.state.infoMessages.map((m) => m.text)));
+    assert.match(lost.text, /spam folder/);
+    assert.match(lost.text, /never post a key in a public issue/);
+    assert.deepEqual(lost.buttons, ['Enter Licence Key', 'Report A Problem']);
+  } finally { app.stop(); }
+});
+
+test('Open Sample commands open valid untitled files in the right language and the walkthrough command runs', async () => {
+  const app = boot({});
+  try {
+    for (const [id, language, first] of [['ediLens.openSampleEdifact', 'edifact', 'UNA'], ['ediLens.openSampleX12', 'x12', 'ISA'], ['ediLens.openSampleHl7', 'hl7', 'MSH']]) {
+      await app.run(id);
+      const doc = app.state.openedDocuments.at(-1);
+      assert.equal(doc.languageId, language, id);
+      assert.ok(doc.getText().startsWith(first), id);
+      assert.equal(doc.uri.scheme, 'untitled');
+      const core = require('../src/format').getCore();
+      const m = core.parse(doc.getText());
+      assert.deepEqual(m.issues, [], id);
+      assert.deepEqual(core.validate(m), [], id + ' validates clean');
+    }
+    assert.equal(app.state.openedDocuments.length, 3);
+    let executed;
+    const original = app.vscode.commands.executeCommand;
+    app.vscode.commands.executeCommand = async (id, ...args) => { executed = [id, ...args]; return original(id, ...args); };
+    await app.run('ediLens.openWalkthrough');
+    assert.deepEqual(executed, ['workbench.action.openWalkthrough', 'ImadMuratspahic.edi-lens#ediLens.gettingStarted', false]);
+    await app.run('ediLens.showDocumentation');
+    assert.equal(String(app.state.opened), 'https://github.com/ImadMuratspahic/edi-lens#readme');
+  } finally { app.stop(); }
+});
+
+test('Report A Problem copies a diagnostics block without file content, names or the key, and opens the issues page', async () => {
+  const doc = open(X12_BAD, 'x12', 'secret-customer-file.x12');
+  const app = boot({ documents: [doc], active: makeEditor(doc), config: { maxIssues: 42 } });
+  try {
+    app.state.inputAnswer = KEY;
+    await app.run('ediLens.enterKey');
+    app.state.infoMessages.length = 0;
+    await app.run('ediLens.reportProblem');
+    const block = app.state.clipboard;
+    assert.match(block, /^EDI Lens \d+\.\d+\.\d+\n/);
+    assert.match(block, /Active file: ANSI X12, \d+ characters, 8 segments, \d+ errors/);
+    assert.match(block, /maxIssues = 42/);
+    assert.match(block, /Licence: Pro \(licence, verified\)\n/);
+    assert.match(block, /workspaceInclude = default\n {2}workspaceExclude = default\n/);
+    assert.ok(!/licenceMode/.test(block));
+    assert.ok(!block.includes(KEY) && !block.includes('0001'), 'no key and no key hint');
+    assert.ok(!block.includes('secret-customer-file') && !block.includes('ACMEBUYER'), 'no file name and no file content');
+    assert.ok(!block.includes(require('node:os').hostname()) || require('node:os').hostname().length < 3, 'no host name');
+    assert.equal(String(app.state.opened), 'https://github.com/ImadMuratspahic/edi-lens/issues');
+    assert.match(app.state.infoMessages.at(-1).text, /copied to the clipboard/);
+    assert.match(app.state.infoMessages.at(-1).text, /no file contents or names/);
   } finally { app.stop(); }
 });
 
 test('Buy Pro opens the checkout link of the configured environment', async () => {
   const app = boot({});
   try {
+    // Closing the list opens nothing.
+    await app.run('ediLens.buyPro');
+    assert.equal(app.state.opened, undefined);
+    assert.deepEqual(app.state.quickPicks.at(-1).items.map((i) => i.tier), ['personal', 'business']);
+    assert.match(app.state.quickPicks.at(-1).items[0].description, /USD 29/);
+    assert.match(app.state.quickPicks.at(-1).items[1].description, /USD 59 per user/);
+    app.state.quickPickAnswer = (items) => items.find((i) => i.tier === 'personal');
     await app.run('ediLens.buyPro');
     assert.equal(app.state.opened.scheme, 'https');
     assert.equal(app.state.opened.path, 'checkout.dodopayments.com/buy/pdt_0NriIrMqPm9xOakMMZtw4?quantity=1', 'the default is the live checkout link');
   } finally { app.stop(); }
-  const test = boot({ config: { licenceMode: 'test' } });
+  // Nothing a user can set selects the provider's test environment: not the setting of 0.1.x, not an
+  // environment variable in an installed copy.
+  const savedEnv = process.env.EDI_LENS_LICENCE_MODE;
+  for (const [options, env] of [[{ config: { licenceMode: 'test' } }, undefined], [{ config: { licenceMode: 'test' } }, 'test'], [{ extensionMode: 1 }, 'test'], [{ extensionMode: 2 }, undefined], [{ extensionMode: 3 }, 'live']]) {
+    if (env === undefined) delete process.env.EDI_LENS_LICENCE_MODE; else process.env.EDI_LENS_LICENCE_MODE = env;
+    const installed = boot(options);
+    try {
+      installed.state.quickPickAnswer = (items) => items.find((i) => i.tier === 'personal');
+      await installed.run('ediLens.buyPro');
+      assert.equal(installed.state.opened.path, 'checkout.dodopayments.com/buy/pdt_0NriIrMqPm9xOakMMZtw4?quantity=1', JSON.stringify([options, env]));
+      installed.state.inputAnswer = KEY;
+      await installed.run('ediLens.enterKey');
+      assert.ok(installed.calls.length > 0 && installed.calls.every((c) => c.host === 'live.dodopayments.com'), 'the licence check goes to the live host: ' + JSON.stringify([options, env]));
+      await installed.run('ediLens.licenceStatus');
+      assert.ok(!/test environment/.test(installed.state.infoMessages.at(-1).text));
+    } finally { installed.stop(); }
+  }
+  // Only a development host of the extension that was started with the variable uses the test environment.
+  process.env.EDI_LENS_LICENCE_MODE = 'test';
+  const test = boot({ extensionMode: 2 });
   try {
+    test.state.quickPickAnswer = (items) => items.find((i) => i.tier === 'personal');
     await test.run('ediLens.buyPro');
     assert.equal(test.state.opened.scheme, 'https');
     assert.match(test.state.opened.path, /^test\.checkout\.dodopayments\.com\/buy\//);
-  } finally { test.stop(); }
+  } finally {
+    test.stop();
+    if (savedEnv === undefined) delete process.env.EDI_LENS_LICENCE_MODE; else process.env.EDI_LENS_LICENCE_MODE = savedEnv;
+  }
+  // No contributed command, setting or menu entry names the environment.
+  assert.ok(!/licenceMode|licence mode|test environment/i.test(JSON.stringify(pkg.contributes)));
 });
 
 async function goPro(app) {

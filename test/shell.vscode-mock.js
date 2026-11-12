@@ -41,6 +41,7 @@ class TextEdit {
 class Uri {
   constructor(scheme, path) { this.scheme = scheme; this.path = path; this.fsPath = path; }
   toString() { return this.scheme + '://' + this.path; }
+  with(change) { return new Uri(change.scheme || this.scheme, change.path !== undefined ? change.path : this.path); }
   static parse(text) { const m = /^([a-z-]+):\/\/(.*)$/.exec(text); return m ? new Uri(m[1], m[2]) : new Uri('file', text); }
   static file(p) { return new Uri('file', p); }
 }
@@ -123,6 +124,11 @@ function createMock() {
     findResult: [],
     activeTextEditor: undefined,
     quickPickAnswer: undefined,
+    quickPicks: [],
+    inputBoxes: [],
+    progressTitles: [],
+    cancelAfter: undefined,
+    saveDialogAnswer: undefined,
     infoAnswer: undefined,
     inputAnswer: undefined,
     emitters: {
@@ -142,6 +148,7 @@ function createMock() {
       map,
       set: (uri, diags) => { map.set(uri.toString(), diags); },
       delete: (uri) => { map.delete(uri.toString()); },
+      has: (uri) => map.has(uri.toString()),
       clear: () => { map.clear(); },
       dispose: () => {}
     };
@@ -158,6 +165,8 @@ function createMock() {
     TextEditorRevealType: { Default: 0, InCenter: 1, InCenterIfOutsideViewport: 2, AtTop: 3 },
     ViewColumn: { Active: -1, Beside: -2, One: 1 },
     ProgressLocation: { Notification: 15 },
+    FileType: { Unknown: 0, File: 1, Directory: 2 },
+    ExtensionMode: { Production: 1, Development: 2, Test: 3 },
     commands: {
       registerCommand: (id, fn) => { state.commands.set(id, fn); return { dispose: () => state.commands.delete(id) }; },
       executeCommand: async (id, ...args) => {
@@ -190,17 +199,30 @@ function createMock() {
         return typeof state.warnAnswer === 'function' ? state.warnAnswer(text, rest) : state.warnAnswer;
       },
       showErrorMessage: async (text) => { state.errorMessages.push(text); return undefined; },
-      showQuickPick: async (items) => (typeof state.quickPickAnswer === 'function' ? state.quickPickAnswer(items) : state.quickPickAnswer),
-      showInputBox: async () => state.inputAnswer,
-      showOpenDialog: async () => state.openDialogAnswer,
-      showTextDocument: async (doc) => { state.shown = doc; return { document: doc }; },
+      showQuickPick: async (items, options) => {
+        state.quickPicks.push({ items, options });
+        return typeof state.quickPickAnswer === 'function' ? state.quickPickAnswer(items, options) : state.quickPickAnswer;
+      },
+      showInputBox: async (options) => {
+        state.inputBoxes.push(options || {});
+        return typeof state.inputAnswer === 'function' ? state.inputAnswer(options || {}) : state.inputAnswer;
+      },
+      showOpenDialog: async (options) => (typeof state.openDialogAnswer === 'function' ? state.openDialogAnswer(options || {}) : state.openDialogAnswer),
+      showSaveDialog: async (options) => (typeof state.saveDialogAnswer === 'function' ? state.saveDialogAnswer(options || {}) : state.saveDialogAnswer),
+      showTextDocument: async (doc, options) => { state.shown = doc; state.shownOptions = options; return { document: doc }; },
       setStatusBarMessage: (text) => { state.statusMessages.push(text); return { dispose() {} }; },
-      withProgress: async (options, task) => task({ report() {} }, { isCancellationRequested: false }),
-      createWebviewPanel: (type, title) => { const panel = { type, title, webview: { html: '' } }; state.panel = panel; return panel; }
+      withProgress: async (options, task) => {
+        state.progressTitles.push(options && options.title);
+        let reports = 0;
+        const token = { get isCancellationRequested() { return state.cancelAfter !== undefined && reports > state.cancelAfter; } };
+        return task({ report() { reports++; } }, token);
+      },
+      createWebviewPanel: (type, title, column, options) => { const panel = { type, title, options, webview: { html: '' } }; state.panel = panel; return panel; }
     },
     workspace: {
       get textDocuments() { return state.textDocuments; },
       workspaceFolders: undefined,
+      getWorkspaceFolder: (uri) => (vscode.workspace.workspaceFolders || []).find((f) => String(uri.path).startsWith(f.uri.path.replace(/\/+$/, '') + '/')),
       getConfiguration: () => ({ get: (key, fallback) => (Object.prototype.hasOwnProperty.call(state.config, key) ? state.config[key] : fallback) }),
       onDidOpenTextDocument: state.emitters.open.event,
       onDidSaveTextDocument: state.emitters.save.event,
@@ -209,6 +231,16 @@ function createMock() {
       onDidChangeConfiguration: state.emitters.config.event,
       asRelativePath: (uri) => (uri.path || String(uri)).replace(/^\/work\//, ''),
       openTextDocument: async (options) => {
+        if (options instanceof Uri) {
+          const known = state.textDocuments.find((d) => d.uri.toString() === options.toString());
+          if (known) return known;
+          const bytes = state.files.get(options.toString());
+          if (!bytes) throw new Error('file not found: ' + options.toString());
+          const opened = makeDocument(Buffer.from(bytes).toString('utf8'), 'plaintext', options.path.replace(/^\/work\//, ''));
+          opened.uri = options;
+          state.textDocuments.push(opened);
+          return opened;
+        }
         const doc = makeDocument(options.content, options.language, 'untitled-' + (state.openedDocuments.length + 1), { scheme: 'untitled' });
         state.openedDocuments.push(doc);
         return doc;
@@ -224,7 +256,7 @@ function createMock() {
         stat: async (uri) => {
           const bytes = state.files.get(uri.toString());
           if (!bytes) throw new Error('file not found: ' + uri.toString());
-          return { size: bytes.length };
+          return { size: bytes.length, type: 1 };
         }
       }
     },
@@ -252,11 +284,12 @@ function install(mock) {
   return function uninstall() { Module._load = original; };
 }
 
-function makeContext() {
+function makeContext(extensionMode) {
   const secrets = new Map();
   const global = new Map();
   const workspace = new Map();
   return {
+    extensionMode: extensionMode === undefined ? 1 : extensionMode,
     subscriptions: [],
     secrets: { get: async (k) => secrets.get(k), store: async (k, v) => { secrets.set(k, v); }, delete: async (k) => { secrets.delete(k); } },
     globalState: { get: (k) => global.get(k), update: async (k, v) => { if (v === undefined) global.delete(k); else global.set(k, v); } },

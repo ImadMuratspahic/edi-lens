@@ -196,3 +196,23 @@ test('path: resolve after locate is stable for empty elements', () => {
   assert.equal(empty.offset, empty.end);
   assert.equal(empty.offset, lin.elements[1].offset);
 });
+
+test('locate on the separator between two subcomponents reports the enclosing component, not the first subcomponent', () => {
+  const m = parse('MSH|^~\&|A|B|C|D|20240101||ORU^R01|1|P|2.5\rOBX|1|CE|X||BLDV&Blood venous&HL70070^^^&Left arm||||||F\r');
+  const text = m.text;
+  const amp = text.indexOf('&Blood');
+  assert.equal(locate(m, amp + 1).path, 'OBX[1]-5.1.2');
+  assert.equal(locate(m, amp).path, 'OBX[1]-5.1', 'the separator belongs to the component');
+  assert.equal(locate(m, amp).subcomponent, null);
+  assert.equal(locate(m, amp).component.raw, 'BLDV&Blood venous&HL70070');
+  const r = resolvePath(m, locate(m, amp).path);
+  assert.ok(r.offset <= amp && amp <= r.end);
+  // A component with a single subcomponent still reports that subcomponent (unchanged behaviour).
+  const plain = locate(m, text.indexOf('BLDV') + 1);
+  assert.equal(plain.path, 'OBX[1]-5.1.1');
+  assert.ok(plain.subcomponent);
+  const edi = parse("UNB+UNOC:3+A+B+240101:1200+1'NAD+BY+123::9'UNZ+1+1'");
+  const nad = locate(edi, edi.text.indexOf('123') + 1);
+  assert.equal(nad.path, 'NAD[1]-2.1');
+  assert.ok(nad.subcomponent && nad.subcomponent.raw === '123');
+});
