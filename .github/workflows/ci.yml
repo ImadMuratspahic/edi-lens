@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Unit tests (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Unit, corpus and fuzz tests
+        run: node --test
+      - name: Tests in a second time zone
+        run: node --test
+        env:
+          TZ: Pacific/Auckland
+          EDI_LENS_SKIP_STRESS: "1"
+      - name: Tests from a path with spaces and non-ASCII characters
+        shell: bash
+        env:
+          EDI_LENS_SKIP_STRESS: "1"
+        run: |
+          target="$RUNNER_TEMP/edi lens prüfung ☃"
+          mkdir -p "$target"
+          cp -R . "$target"
+          cd "$target"
+          node --test
