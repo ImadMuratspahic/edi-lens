@@ -1,0 +1,19 @@
+{
+  "name": "Pinecrest Wholesale: purchase orders we accept",
+  "format": "edifact",
+  "messageTypes": ["ORDERS"],
+  "rules": [
+    { "id": "PW-01", "type": "segment-required", "segment": "NAD[DP]", "message": "The delivery party (NAD+DP) is missing." },
+    { "id": "PW-02", "type": "pattern", "path": "BGM-2", "pattern": "^LO-\\d{2}-\\d{5}$", "message": "The order number must look like LO-24-07001." },
+    { "id": "PW-03", "type": "value-in", "path": "CUX-1.2", "values": ["EUR", "DKK"], "message": "Orders are accepted in EUR or DKK only." },
+    { "id": "PW-04", "type": "segment-required", "segment": "DTM[2]", "message": "The requested delivery date (DTM+2) is missing." },
+    { "id": "PW-05", "type": "date", "path": "DTM[137]-1.2", "format": "CCYYMMDD" },
+    { "id": "PW-06", "type": "segment-required", "segment": "QTY[21]", "within": "LIN", "until": ["UNS"], "message": "Every order line needs an ordered quantity (QTY+21)." },
+    { "id": "PW-07", "type": "equal", "left": "count(LIN)", "right": "CNT[2]-1.2", "message": "The number of lines in CNT+2 does not match the LIN segments." },
+    { "id": "PW-08", "type": "condition", "if": { "segment": "CTA" }, "then": { "type": "segment-required", "segment": "COM" }, "message": "A contact (CTA) needs a way to reach it (COM)." },
+    { "id": "PW-09", "type": "range", "path": "QTY[21]-1.2", "min": 1, "max": 500, "severity": "warning" },
+    { "id": "PW-10", "type": "length", "path": "NAD[BY]-4", "max": 35 },
+    { "id": "PW-11", "type": "occurrences", "segment": "LIN", "min": 1, "max": 200 },
+    { "id": "PW-12", "type": "element-required", "path": "NAD[SU]-2.1" }
+  ]
+}

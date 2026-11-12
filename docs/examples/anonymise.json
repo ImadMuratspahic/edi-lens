@@ -1,0 +1,12 @@
+{
+  "profiles": ["hl7-patient", "x12-healthcare", "edifact-party"],
+  "rules": [
+    { "format": "hl7", "path": "PV1-7", "action": "fake-name" },
+    { "format": "hl7", "path": "PID-8", "action": "keep" },
+    { "format": "x12", "path": "N1[BY|ST]-2", "action": "pseudonym" },
+    { "format": "x12", "path": "N1[BY|ST]-4", "action": "mask" },
+    { "format": "edifact", "path": "UNB-2.1", "action": "pseudonym" },
+    { "format": "edifact", "path": "UNB-3.1", "action": "pseudonym" },
+    { "format": "edifact", "path": "NAD-9", "action": "keep" }
+  ]
+}

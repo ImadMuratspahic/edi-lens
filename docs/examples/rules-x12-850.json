@@ -1,0 +1,16 @@
+{
+  "name": "Pinecrest Wholesale: 850 purchase orders",
+  "format": "x12",
+  "messageTypes": ["850"],
+  "rules": [
+    { "id": "PO-01", "type": "segment-required", "segment": "N1[ST]", "message": "The ship-to party (N1*ST) is missing." },
+    { "id": "PO-02", "type": "value-in", "path": "BEG-1", "values": ["00"], "message": "Only original orders (BEG01 = 00) are accepted on this connection." },
+    { "id": "PO-03", "type": "pattern", "path": "BEG-3", "pattern": "^LO-\\d{2}-\\d{5}$" },
+    { "id": "PO-04", "type": "date", "path": "BEG-5", "format": "CCYYMMDD" },
+    { "id": "PO-05", "type": "segment-required", "segment": "REF[DP]", "severity": "warning", "message": "The department number (REF*DP) helps us route the order." },
+    { "id": "PO-06", "type": "value-in", "path": "PO1-3", "values": ["EA", "CA"] },
+    { "id": "PO-07", "type": "equal", "left": "count(PO1)", "right": "CTT-1" },
+    { "id": "PO-08", "type": "segment-required", "segment": "PID", "within": "PO1", "until": ["CTT"] },
+    { "id": "PO-09", "type": "range", "path": "PO1-2", "min": 1, "max": 100, "severity": "warning", "message": "More than 100 pieces of one item need a call first." }
+  ]
+}

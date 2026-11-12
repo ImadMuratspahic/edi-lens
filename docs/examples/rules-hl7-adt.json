@@ -1,0 +1,17 @@
+{
+  "name": "Wardview: admissions and discharges",
+  "format": "hl7",
+  "messageTypes": ["ADT"],
+  "rules": [
+    { "id": "WV-01", "type": "segment-required", "segment": "PID" },
+    { "id": "WV-02", "type": "segment-required", "segment": "PV1" },
+    { "id": "WV-03", "type": "pattern", "path": "PID-3.1", "pattern": "^NF-\\d{7}$", "message": "The record number must look like NF-5503187." },
+    { "id": "WV-04", "type": "value-in", "path": "PID-3.5", "values": ["MR"] },
+    { "id": "WV-05", "type": "date", "path": "PID-7", "format": "CCYYMMDD" },
+    { "id": "WV-06", "type": "value-in", "path": "PID-8", "values": ["F", "M", "O", "U"] },
+    { "id": "WV-07", "type": "value-in", "path": "MSH-12", "values": ["2.5", "2.5.1"] },
+    { "id": "WV-08", "type": "segment-required", "segment": "NK1", "messageTypes": ["ADT^A01"], "severity": "warning", "message": "An admission should name a next of kin." },
+    { "id": "WV-09", "type": "condition", "if": { "segment": "IN1" }, "then": { "type": "element-required", "path": "IN1-16" }, "message": "An insurance segment needs the name of the insured." },
+    { "id": "WV-10", "type": "value-in", "path": "PV1-2", "values": ["I", "O", "E"] }
+  ]
+}
