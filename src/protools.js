@@ -244,7 +244,7 @@ function registerProTools(app, h) {
 
   async function askSeed() {
     const seed = await inputBox({
-      title: 'EDI Lens anonymise: seed (optional). The same seed gives the same replacements in every run.',
+      title: 'EDI Lens anonymise: seed (optional). The same seed, files and rules give the same replacements.',
       placeHolder: 'Leave empty for a random seed that is used for this run only',
       password: true
     });
@@ -252,7 +252,7 @@ function registerProTools(app, h) {
   }
 
   async function showAnonymiseReport(entries, seeded, rewriter) {
-    const text = pro().anonymise.toReport(entries, { seeded: seeded, mapSize: rewriter.size() });
+    const text = pro().anonymise.toReport(entries, { seeded: seeded, mapSize: rewriter.size(), distinct: rewriter.distinct() });
     await openText(text, 'markdown', false);
   }
 

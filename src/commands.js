@@ -24,7 +24,7 @@ const MAX_PICK_ITEMS = 20000;
 const MAX_BATCH_FILES = 2000;
 const MAX_BATCH_FILE_BYTES = 5 * 1024 * 1024;
 const OPEN_SCHEMES = ['file', 'untitled', 'vscode-remote', 'vscode-vfs'];
-const WALKTHROUGH_ID = 'ImadMuratspahic.edi-lens#ediLens.gettingStarted';
+const WALKTHROUGH_ID = 'SmallStepsStudio.edi-lens-viewer#ediLens.gettingStarted';
 
 // Button labels, shared so that tests and documentation can refer to them.
 const BUTTONS = Object.freeze({ buy: 'Buy Pro', enter: 'Enter Licence Key', lost: 'Lost your key?', remove: 'Remove Licence', problems: 'Show Problems', report: 'Report A Problem' });
@@ -496,7 +496,8 @@ function registerCommands(app) {
   });
 
   reg('ediLens.removeLicence', async function () {
-    const st = await app.licence.status(false);
+    // Only what is stored is looked at: no request is made before the user has confirmed.
+    const st = await app.licence.peek();
     if (!st.hasKey) { info('No licence key is stored on this computer, so there is nothing to remove.'); return; }
     const pick = await vscode.window.showWarningMessage(messages.removeConfirmText(), { modal: true }, BUTTONS.remove);
     if (pick !== BUTTONS.remove) return;

@@ -24,6 +24,21 @@ function stringList(value) {
   return Array.isArray(value) ? value.filter(function (v) { return typeof v === 'string' && v.trim() !== ''; }) : [];
 }
 
+/**
+ * The licence server environment: the live one. No setting, command or other part of the user
+ * interface can change it. Only an extension development host that was started with
+ * EDI_LENS_LICENCE_MODE=test asks for the payment provider's test environment, and even then it
+ * only gets it when the checkout of the source code is there: the test hosts and test product ids
+ * are in src/licence/test-environment.js, a file that is not part of the packaged extension, so an
+ * installed copy answers every such request with the live environment (see src/licence/config.js).
+ */
+function licenceModeFor(context, environment) {
+  const env = environment || process.env;
+  const development = vscode.ExtensionMode !== undefined && !!context && context.extensionMode !== undefined &&
+    context.extensionMode !== vscode.ExtensionMode.Production;
+  return development && env.EDI_LENS_LICENCE_MODE === 'test' ? 'test' : 'live';
+}
+
 /** Activates the extension. Never throws: each part is installed on its own. */
 function activate(context) {
   let output = null;
@@ -70,13 +85,7 @@ function activate(context) {
     return settingsCache;
   }
 
-  // The licence server environment is fixed to the live one. No setting, command or other part
-  // of the user interface can change it. Only a development host of the extension (the editor
-  // started on its source folder for debugging, never an installed copy) that was started with
-  // EDI_LENS_LICENCE_MODE=test uses the provider's test environment.
-  const development = vscode.ExtensionMode !== undefined && context.extensionMode !== undefined &&
-    context.extensionMode !== vscode.ExtensionMode.Production;
-  const licenceMode = development && process.env.EDI_LENS_LICENCE_MODE === 'test' ? 'test' : 'live';
+  const licenceMode = licenceModeFor(context);
 
   const licence = createLicence({
     secrets: context.secrets,
@@ -205,4 +214,4 @@ function activate(context) {
 /** Called by the editor on shutdown; everything is released through the subscriptions. */
 function deactivate() {}
 
-module.exports = { activate: activate, deactivate: deactivate };
+module.exports = { activate: activate, deactivate: deactivate, licenceModeFor: licenceModeFor };
