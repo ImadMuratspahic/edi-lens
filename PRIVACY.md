@@ -1,6 +1,6 @@
 # Privacy
 
-Last updated: 2026-11-12 (EDI Lens 0.2.0)
+Last updated: 2026-11-12 (EDI Lens 0.2.1)
 
 EDI Lens works on your computer. This page states exactly what the extension stores and what it sends over the network, which is very little.
 
@@ -63,4 +63,4 @@ The **Buy Pro** command asks which licence you want (and, for Business, for how 
 
 ## Questions
 
-Open an issue at <https://github.com/ImadMuratspahic/edi-lens/issues>. Please do not include real business or patient data in a report.
+Open an issue at <https://github.com/small-steps-studio/edi-lens/issues>. Please do not include real business or patient data in a report.

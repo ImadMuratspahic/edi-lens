@@ -1,19 +1,19 @@
 {
-  "name": "edi-lens",
-  "displayName": "EDI Lens",
+  "name": "edi-lens-viewer",
+  "displayName": "EDI Lens - EDIFACT, X12 and HL7 Viewer",
   "description": "Read, validate, compare, query, anonymise and split UN/EDIFACT, ANSI X12 and HL7 v2 messages. Free features plus a 14-day trial of Pro; works offline, only the Pro licence check uses the network.",
-  "version": "0.2.0",
-  "publisher": "ImadMuratspahic",
+  "version": "0.2.1",
+  "publisher": "SmallStepsStudio",
   "license": "SEE LICENSE IN LICENSE.txt",
   "icon": "media/icon.png",
   "pricing": "Trial",
-  "homepage": "https://imadmuratspahic-dev.carrd.co",
+  "homepage": "https://github.com/small-steps-studio/edi-lens#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ImadMuratspahic/edi-lens"
+    "url": "https://github.com/small-steps-studio/edi-lens"
   },
   "bugs": {
-    "url": "https://github.com/ImadMuratspahic/edi-lens/issues"
+    "url": "https://github.com/small-steps-studio/edi-lens/issues"
   },
   "galleryBanner": {
     "color": "#17324d",
@@ -414,7 +414,7 @@
         "ediLens.anonymise.envelopeIds": {
           "type": "string",
           "enum": ["pseudonymise", "keep"],
-          "enumDescriptions": ["Replace the sender and receiver ids of the envelope too. The same id in the body gets the same replacement.", "Leave the sender and receiver ids of the envelope as they are."],
+          "enumDescriptions": ["Replace the sender and receiver ids of the envelope too. Where a rule also replaces the same id in the body as a pseudonym, both get the same replacement.", "Leave the sender and receiver ids of the envelope as they are."],
           "default": "pseudonymise",
           "order": 14,
           "markdownDescription": "What **Anonymise** does with the sender and receiver ids of the envelope (`UNB`, `UNG`, `ISA06`, `ISA08`, `GS02`, `GS03`, `MSH-3` to `MSH-6`). `pseudonymise` replaces them, so the first segment of a copy does not name the parties. Choose `keep` when a copy must still be routed by a test system that looks at these ids."

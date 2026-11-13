@@ -23,3 +23,4 @@ demo/**
 **/*.test.js
 node_modules/**
 media/screenshots/**
+src/licence/test-environment.js

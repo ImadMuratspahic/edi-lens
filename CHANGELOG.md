@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.1
+
+Changed:
+
+* Publisher: **Small Steps Studio**, extension id `SmallStepsStudio.edi-lens-viewer`; source code and issues at <https://github.com/small-steps-studio/edi-lens>. Features, commands, settings, prices and licence terms are those of 0.2.0.
+
+Fixed:
+
+* Entering a key that cannot be saved (for example when the editor has no credential store) no longer discards a licence that was already stored on the computer; the message says whether the previous licence was kept.
+* When the editor has lost the stored key and another key is entered, the message no longer says that the old activation was released; no release is sent for a key that is not known.
+* **Remove Licence From This Machine** no longer asks the licence server anything before you have confirmed; after you confirm it only frees the activation.
+* A trial record whose start and last use both lie more than a day in the future now counts as a trial that has ended instead of holding the trial clock still.
+* The payment provider's test environment (host and test product ids) is no longer part of the installed extension.
+* Anonymise: two different values never receive the same replacement within a run, and the report says so. With a seed, the same files and rules give the same replacements again; with other files, a value whose replacement had to move to stay distinct can get another one. `fake-date` moves both dates of a date-time range (`CCYYMMDDHHMM-CCYYMMDDHHMM`).
+* Generate Acknowledgement: no HL7 acknowledgement is written when MSH-12 of the source does not hold a version number, and an acknowledgement with any warning is no longer handed out.
+* The documentation says that editors other than VS Code were not tested, and describes what happens on Linux without a credential store.
+
 ## 0.2.0
 
 New:

@@ -80,7 +80,7 @@ Prices are those at the time of writing; the checkout page shows the final price
 
 ## Quick start
 
-1. Install **EDI Lens** from the Extensions view (`Ctrl+Shift+X`; publisher ImadMuratspahic). Requires VS Code 1.82 or newer.
+1. Install **EDI Lens** from the Extensions view (`Ctrl+Shift+X`; publisher Small Steps Studio). Requires VS Code 1.82 or newer.
 2. Open a `.edi`, `.x12` or `.hl7` file, or run **EDI Lens: Open Sample EDIFACT** for a sample with invented data. For other extensions run **EDI Lens: Detect Format**.
 3. Click the EDI Lens icon in the activity bar for the outline; hover a value for its path; check the status bar for the segment and problem counts.
 4. **EDI Lens: Pretty Print** (or `Shift+Alt+F`) for one segment per line.
@@ -205,10 +205,10 @@ Support and test teams cannot paste real messages into tickets or test systems. 
 ![An HL7 v2 admission and its anonymised copy side by side](media/screenshots/anonymise-pro.png)
 
 * **The structure stays valid.** Only the values named by a rule are replaced, each by a value of exactly the same length made of letters and digits where the original had letters and digits. Every delimiter, escape sequence, segment and count stays where it was, so the copy has the same problems (or none) as the original. Control numbers, counts, delimiters, message types and versions in the envelope are protected and never replaced.
-* **Actions:** `mask` (letters become `X`, digits `9`), `pseudonym` (other letters and digits), `fake-name` (reads like a name), `fake-date` (the date moves by a number of days that is the same for the whole run, so the order of dates is kept; both dates of a range such as `20240101-20240131` move), `keep` (leave as it is) and `blank` (empty the value; the only action that changes a length).
-* **Consistent.** The same original value always becomes the same replacement inside a run, so a patient or party that appears in several places or files still matches. Give a **seed** when asked and a later run with the same seed gives the same replacements; leave it empty and a random seed is used for that run only.
+* **Actions:** `mask` (letters become `X`, digits `9`), `pseudonym` (other letters and digits), `fake-name` (reads like a name), `fake-date` (the date moves by a number of days that is the same for the whole run, so the order of dates is kept; both dates of a range such as `20240101-20240131` or `202401011030-202401311200` move), `keep` (leave as it is) and `blank` (empty the value; the only action that changes a length).
+* **Consistent and distinct.** The same original value always becomes the same replacement inside a run, so a patient or party that appears in several places or files still matches, and two different values never get the same replacement (the report says so, and warns when that could not be kept). Replacements come from HMAC-SHA256 keyed with your **seed**; leave the seed empty and 32 random bytes are drawn for that run only, so the replacements cannot be reproduced. A seed you give makes the replacements reproducible for the same files and rules by anyone who holds that seed (with the same version of the extension), so treat it like a password. With other files, a value whose replacement had to move to stay distinct can get another one.
 * **Built-in profiles** (setting `ediLens.anonymise.profiles`): `hl7-patient` (the main identifying fields of `PID`, `NK1`, `IN1`, `GT1`), `x12-healthcare` (the main identifying fields of 837, 835, 270 and 271: `NM1` of subscriber, patient and dependent, `N3`, `N4`, `DMG`, member and claim numbers, `PER`), `x12-party` (`N1`, `N2`, `N3`, `N4`, `PER` of any transaction, for example orders and invoices) and `edifact-party` (`NAD`, `CTA`, `COM`, `FII`). A profile replaces exactly the paths listed in [docs/anonymise.md](docs/anonymise.md), not every field that could identify somebody: other segments (for example `PV1`, `OBX`, `NTE`, `REF`, `RFF`, `FTX`, dates of service) stay unless you add rules for them.
-* **Sender and receiver of the envelope.** The party ids in `UNB`, `UNG`, `ISA06`, `ISA08`, `GS02`, `GS03` and `MSH-3` to `MSH-6` are replaced too (setting `ediLens.anonymise.envelopeIds`, default `pseudonymise`), with the same replacement the id gets in the body, so the first segment of a copy does not name the parties. Set it to `keep` when a test system must still route the copy by these ids.
+* **Sender and receiver of the envelope.** The party ids in `UNB`, `UNG`, `ISA06`, `ISA08`, `GS02`, `GS03` and `MSH-3` to `MSH-6` are replaced too (setting `ediLens.anonymise.envelopeIds`, default `pseudonymise`), so the first segment of a copy does not name the parties; where a rule also replaces the same id in the body as a pseudonym, both get the same replacement. Set it to `keep` when a test system must still route the copy by these ids.
 * **A file in which no rule matched is not anonymised, and EDI Lens says so.** Anonymise Message then makes no copy and tells you why. Anonymise Folder does not write such a file into the target folder; it lists it as "unchanged: no rule matched" in the report and shows a warning with the count (setting `ediLens.anonymise.copyUnchanged` copies these files unchanged if you want a complete folder).
 * **Your own rules** go into `.edilens/anonymise.json` in the workspace folder (setting `ediLens.anonymise.rulesFile`); the editor checks the file against a JSON schema while you type. Your rules come before the profiles.
 
@@ -224,7 +224,7 @@ Support and test teams cannot paste real messages into tickets or test systems. 
 ```
 
 * **The report lists counts only**, per rule and per file, never a value. The table of originals and replacements exists only in memory and is gone when the window closes. **EDI Lens: Export Pseudonym Map** writes it to a file of your choice, after a warning that this file is as sensitive as the original messages.
-* **What it does not do.** Only the values named by rules are replaced. Free text (notes, comments, descriptions) is not searched for names, and a field that your partner uses in an unusual way is not recognised. Read the copy before you share it. A pseudonym is not encryption: short values can collide, and somebody who knows the seed and guesses an original can confirm the guess. Whether a copy is anonymous in the legal sense depends on what else it contains and on who receives it. File names are kept as they are.
+* **What it does not do.** Only the values named by rules are replaced. Free text (notes, comments, descriptions) is not searched for names, and a field that your partner uses in an unusual way is not recognised. Read the copy before you share it. A pseudonym is not encryption: somebody who knows the seed and guesses an original can confirm the guess, and a kind of value with only a few possible replacements (ten one-digit numbers) can run out of them. Whether a copy is anonymous in the legal sense depends on what else it contains and on who receives it. File names are kept as they are.
 
 Details and every profile path: [docs/anonymise.md](docs/anonymise.md).
 
@@ -344,7 +344,7 @@ The editor context menu of EDI Lens languages has an **EDI Lens** submenu; the E
 | `ediLens.compare.trimValues` | `false` | Ignore leading and trailing spaces when comparing. |
 | `ediLens.export.neutraliseFormulas` | `true` | In CSV exports, prefix values that start with `=`, `+`, `-`, `@`, a tab or a carriage return with an apostrophe so spreadsheets do not run them as formulas. |
 | `ediLens.anonymise.profiles` | all four | Built-in rule sets for Anonymise: `hl7-patient`, `x12-healthcare`, `x12-party`, `edifact-party`. |
-| `ediLens.anonymise.envelopeIds` | `pseudonymise` | What Anonymise does with the sender and receiver ids of the envelope: `pseudonymise` replaces them like the same id in the body, `keep` leaves them (for copies a test system must still route). |
+| `ediLens.anonymise.envelopeIds` | `pseudonymise` | What Anonymise does with the sender and receiver ids of the envelope: `pseudonymise` replaces them as pseudonyms, `keep` leaves them (for copies a test system must still route). |
 | `ediLens.anonymise.copyUnchanged` | `false` | Anonymise Folder does not write files in which no rule matched; turn this on to copy them unchanged as well. They are listed as unchanged either way. |
 | `ediLens.anonymise.rulesFile` | `.edilens/anonymise.json` | Rule file for Anonymise, inside the workspace folder or an absolute path. Optional. |
 | `ediLens.rules.file` | `.edilens/rules.json` | Partner rule file, inside the workspace folder or an absolute path. |
@@ -375,7 +375,7 @@ The editor context menu of EDI Lens languages has an **EDI Lens** submenu; the E
 
 **I lost my key.** It was e-mailed by the payment provider right after the purchase; search that mailbox and its spam folder for "Dodo Payments" or "EDI Lens". Your purchases are also listed in the payment provider's customer portal. Still lost: contact support (never post the key itself in a public issue). The **Lost your key?** button in **Show Licence Status** repeats these steps.
 
-**Which VS Code versions and editors?** VS Code 1.82 or newer. The extension is plain JavaScript without platform-specific parts and is meant to run on Windows, macOS and Linux; this version was tested on Windows with VS Code 1.146. Editors built on the same extension interface run it as well; where no credential store exists, the key cannot be saved and the activation is released again with a clear message.
+**Which VS Code versions and editors?** VS Code 1.82 or newer. The extension is plain JavaScript without platform-specific parts and is meant to run on Windows, macOS and Linux. The automated tests of this version ran on Windows with a stand-in for the editor; the previous version, 0.2.0, was also run in VS Code 1.146 on Windows. Other platforms were not tested. Editors built on the same extension interface should run it as well; they were not tested. On Linux without a keyring the editor may keep the licence key only until it is closed: enter it again after a restart (no further activation is used), or start a keyring (GNOME Keyring, KWallet). Where the editor cannot save the key at all, the activation is released again with a clear message.
 
 **Does it work in remote workspaces (SSH, WSL, containers)?** Yes. The extension runs on the remote side, so the licence check is sent from the remote machine. The licence key and the trial record are kept by the editor's own storage, which VS Code holds on your local computer.
 
@@ -415,7 +415,7 @@ Data disclosure for the licence check:
 
 ## For IT and procurement
 
-* **Identity.** The extension id is `ImadMuratspahic.edi-lens` (publisher ImadMuratspahic), for allow lists. The source code is public: <https://github.com/ImadMuratspahic/edi-lens>.
+* **Identity.** The extension id is `SmallStepsStudio.edi-lens-viewer` (publisher Small Steps Studio), for allow lists. The source code is public: <https://github.com/small-steps-studio/edi-lens>.
 * **Network.** One host, `live.dodopayments.com`, used only for the licence check and only after a key was entered. No setting can point the extension at another host. No telemetry, no file or file name leaves the computer. The free features and the 14-day trial make no network request at all. Details: [Privacy](#privacy) and [PRIVACY.md](PRIVACY.md).
 * **Offline.** A successful licence check is trusted for 24 hours; without a connection the last successful check keeps Pro working for 14 days. There is no offline licence for computers that are never connected.
 * **Licences.** Pro Business: One key per user: set the number of users with the Buy command, or add ?quantity=N to the checkout link. Each key works on up to three computers of its user and can be moved to a colleague with **Remove Licence From This Machine**. The checkout link for N users is `https://checkout.dodopayments.com/buy/pdt_0NrkGSyl3UXB82kEhwUxy?quantity=N`.
@@ -428,7 +428,7 @@ UN/EDIFACT, ANSI X12 and HL7 are names of standards that belong to their respect
 
 ## Support
 
-Questions, bug reports and requests: <https://github.com/ImadMuratspahic/edi-lens/issues>. In the editor, **EDI Lens: Report A Problem** copies a diagnostics block (versions, platform, settings, licence state; no file contents, no key) and opens that page. More about the project: <https://imadmuratspahic-dev.carrd.co>. When you report a problem, please describe it with an example that contains no real business or patient data, and never post a licence key.
+Questions, bug reports and requests: <https://github.com/small-steps-studio/edi-lens/issues>. In the editor, **EDI Lens: Report A Problem** copies a diagnostics block (versions, platform, settings, licence state; no file contents, no key) and opens that page. When you report a problem, please describe it with an example that contains no real business or patient data, and never post a licence key.
 
 ## Licence and terms
 

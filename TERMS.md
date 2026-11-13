@@ -1,6 +1,6 @@
 # Terms of purchase and use
 
-Last updated: 2026-11-12. These terms summarise, in plain words, how EDI Lens is offered. The binding text is the End User Licence Agreement in [LICENSE.txt](LICENSE.txt); where the two differ, the agreement applies.
+Last updated: 2026-11-12 (EDI Lens 0.2.1). These terms summarise, in plain words, how EDI Lens is offered. The binding text is the End User Licence Agreement in [LICENSE.txt](LICENSE.txt); where the two differ, the agreement applies.
 
 ## What is free
 
@@ -34,4 +34,4 @@ The software is provided "as is", without warranty. The structural checks and th
 
 ## Support
 
-Questions, bug reports and licence problems: <https://github.com/ImadMuratspahic/edi-lens/issues>. In the editor, **EDI Lens: Report A Problem** copies a diagnostics block (no file contents, no key) and opens that page. Never post a licence key or real business or patient data in a public issue.
+Questions, bug reports and licence problems: <https://github.com/small-steps-studio/edi-lens/issues>. In the editor, **EDI Lens: Report A Problem** copies a diagnostics block (no file contents, no key) and opens that page. Never post a licence key or real business or patient data in a public issue.

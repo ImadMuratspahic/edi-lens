@@ -1,9 +1,9 @@
 EDI Lens End User Licence Agreement
 
-Version 3, for EDI Lens 0.2.0 and later.
-Copyright (c) 2026 Imad Muratspahic. All rights reserved.
+Version 4, for EDI Lens 0.2.1 and later.
+Copyright (c) 2026 Small Steps Studio. All rights reserved.
 
-This agreement is between you and the author of EDI Lens, Imad Muratspahic
+This agreement is between you and the author of EDI Lens, Small Steps Studio
 ("the author"), and covers the EDI Lens extension for Visual Studio Code
 ("the software"), its documentation and its updates. By installing or using
 the software you accept this agreement. If you do not accept it, do not
@@ -153,7 +153,7 @@ without warranty; the author's liability is limited to the price you paid.
 12. Support and contact
 
    Questions about the software and this agreement, lost keys and activation
-   problems: https://github.com/ImadMuratspahic/edi-lens/issues (public; never
+   problems: https://github.com/small-steps-studio/edi-lens/issues (public; never
    post a licence key or real business data there). Within the software, the
    command "EDI Lens: Report A Problem" prepares a report.
 
