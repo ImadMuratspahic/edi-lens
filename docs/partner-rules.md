@@ -58,7 +58,7 @@ Paths and segments are written as [selectors](query.md#selectors): `NAD[BY]` is 
 | `element-required` | `path` | the value is empty or missing in a segment the path names |
 | `value-in` | `path`, `values`, `ignoreCase` | a filled value is not in the list (a code list) |
 | `pattern` | `path`, `pattern`, `ignoreCase` | a filled value does not match the regular expression |
-| `range` | `path`, `min`, `max` | a filled value is not a number, or is outside the range |
+| `range` | `path`, `min`, `max` | a filled value is not a number, or is outside the range (compared as ordinary numbers with about 15 significant digits, like `min` and `max` in a JSON file; use `equal` for long identifiers) |
 | `date` | `path`, `format` | a filled value is not a real date in that format |
 | `length` | `path`, `min`, `max` | the length of a filled value (in characters) is outside the range |
 | `condition` | `if`, `then` | the condition holds and the rule in `then` is violated |

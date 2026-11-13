@@ -3,7 +3,7 @@
 ## Install
 
 1. Open the Extensions view in VS Code (`Ctrl+Shift+X`, `Cmd+Shift+X` on macOS).
-2. Search for **EDI Lens** (publisher ImadMuratspahic) and select **Install**.
+2. Search for **EDI Lens** (publisher Small Steps Studio) and select **Install**.
 3. Open **Help > Welcome**, choose the **Get started with EDI Lens** walkthrough, or run **EDI Lens: Open Getting Started Guide** from the Command Palette (`F1`).
 
 Requires VS Code 1.82 or newer. Nothing else is installed and no account is needed.

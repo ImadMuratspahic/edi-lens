@@ -29,22 +29,24 @@
 | Action | Result | Example |
 | --- | --- | --- |
 | `mask` | letters become `X`, digits become `9` | `RS-4471902` becomes `XX-9999999` |
-| `pseudonym` | other letters and digits, the same for the same original | `RS-4471902` becomes `EC-9263416` |
+| `pseudonym` | other letters and digits, the same for the same original within a run | `RS-4471902` becomes `EC-9263416` |
 | `fake-name` | like `pseudonym`, but consonants and vowels alternate so the result reads like a name | `Hartwell` becomes `Zonefiku` |
 | `fake-date` | the date moves back by a number of days (1 to 365) that is the same for the whole run | `19840712` becomes `19831109` |
 | `keep` | the value stays; use it to switch a profile rule off for one path | |
 | `blank` | the value is emptied; in the fixed-width `ISA` it is filled with spaces | |
 
-`fake-date` reads `CCYYMMDD` at the start of a value (a time or zone after it is kept), a range of two such dates (`20240101-20240131`: both move), and a value of exactly six digits as `YYMMDD`. Because every date of a run moves by the same number of days, the order of dates and the days between them stay as they were. A value that is not a real date is replaced like a `pseudonym` and counted in the report as "not recognised".
+`fake-date` reads `CCYYMMDD` at the start of a value (a time or zone after it is kept), a range of two such dates or date-times (`20240101-20240131` or `202401011030-202401311200`: both dates move and the times stay), and a value of exactly six digits as `YYMMDD`. Because every date of a run moves by the same number of days, the order of dates and the days between them stay as they were, and two different dates never meet in one replacement. A value that is not a real date, or a range whose second part is not a real date, is replaced like a `pseudonym` and counted in the report as "not recognised".
 
 ## The seed
 
 Each run asks for a **seed**, typed like a password.
 
-* **With a seed**, a later run with the same seed gives the same replacements. Use this when a second batch must match an earlier one.
-* **Without a seed**, a random seed is drawn for that run and forgotten afterwards; the replacements cannot be reproduced.
+* **With a seed**, a later run with the same seed over the same files gives the same replacements (with the same rules and the same version of the extension). With other files, such as a second batch, a value whose replacement had to move to stay distinct can get another one (see below), so files that must match are best anonymised together in one run. Anybody who holds the seed can reproduce the whole mapping and check a guessed original value against it, so a seed is a secret: choose a long one and keep it as safe as the original messages.
+* **Without a seed**, the key is 32 random bytes from the operating system's secure random source (`crypto.randomBytes`), drawn for that run and forgotten afterwards; the replacements cannot be reproduced.
 
-The seed is never stored and never written to the report. Treat it like a password: somebody who knows the seed and can guess an original value can check the guess.
+Every replacement is derived with HMAC-SHA256 keyed with the seed (or with the random key). The seed is used as it is; it is not stretched, so a short or common seed can be guessed. It is never stored and never written to the report.
+
+Within one run, two different original values never get the same replacement: when the first replacement of a value is already taken by another value, the next one is used. The report says so, and warns when this could not be kept (more than 500,000 distinct values, or a kind of value with fewer possible replacements than values). Because of this, a later run with the same seed that contains other values, or the same values in another order, can give a value that had to move a different replacement than before; a value whose first replacement is free in both runs gets the same one.
 
 ## Built-in profiles
 
@@ -68,7 +70,7 @@ Read this list before you rely on a profile; add rules for what matters in your 
 
 ## Sender and receiver ids of the envelope
 
-The first segment of a message names the parties: `UNB-2` and `UNB-3` (and `UNG-2`, `UNG-3`), `ISA06` and `ISA08` (and `GS02`, `GS03`), `MSH-3` to `MSH-6` (and the same fields of `BHS` and `FHS`). With the setting `ediLens.anonymise.envelopeIds` at its default `pseudonymise` these ids are replaced as pseudonyms whenever a file is anonymised, whatever profiles are active. Because a pseudonym depends only on the value, the same id in the body (a `NAD` or `NM1` identifier, the assigning authority in `PID-3`) gets the same replacement, and the copy still fits together.
+The first segment of a message names the parties: `UNB-2` and `UNB-3` (and `UNG-2`, `UNG-3`), `ISA06` and `ISA08` (and `GS02`, `GS03`), `MSH-3` to `MSH-6` (and the same fields of `BHS` and `FHS`). With the setting `ediLens.anonymise.envelopeIds` at its default `pseudonymise` these ids are replaced as pseudonyms whenever a file is anonymised, whatever profiles are active. Within a run a value always gets the same pseudonym, so where a rule also replaces the same id in the body as a pseudonym (a `NAD` or `NM1` identifier, the assigning authority in `PID-3`), both get the same replacement, and the copy still fits together. An id in a field that no rule names stays as it is in the body.
 
 Set it to `keep` when the copy must still be routed by a test system that looks at these ids. The copy then names the real sender and receiver in its first segment; the completion message says so. A rule with the action `keep` in your rule file switches a single id off, for example `{ "format": "x12", "path": "ISA-8", "action": "keep" }`.
 
@@ -104,7 +106,7 @@ While a run works, EDI Lens keeps a table of originals and replacements in memor
 ## Limits you should know
 
 * **Rules, not recognition.** Only the values named by rules are replaced. Free text (`FTX`, `NTE`, `OBX` with text, `MSG`) is not searched for names, and identifying values in fields that no rule names stay. Read a copy before you share it.
-* **Not encryption.** A pseudonym hides a value from a reader; it does not protect it against somebody who has the seed. Short values can share a replacement (there are only ten one-digit numbers).
+* **Not encryption.** A pseudonym hides a value from a reader; it does not protect it against somebody who has the seed. A kind of value has only so many possible replacements (there are ten one-digit numbers): when all are taken, the run keeps the last value as it is, and if that is not possible either the report warns that two values share a replacement.
 * **Content checks may differ.** The structure stays valid, but a check digit, a code from a code list or a postal code that a partner system verifies will usually no longer be right after `pseudonym`. Use `keep` for values that must stay.
 * **Whether a copy is anonymous in the legal sense depends on what else it contains and on who receives it.** EDI Lens replaces values; the decision to share remains yours. EDI Lens makes no statement about any privacy law.
 

@@ -49,8 +49,8 @@ Before anything else: **EDI Lens: Report A Problem** copies a diagnostics block 
 
 ## Other editors built on VS Code
 
-EDI Lens uses only the standard extension interface. In some editors the **Buy Pro** and **Show Documentation** links ask for confirmation before the browser opens; in editors without a credential store the key cannot be saved and the activation is released again (see above).
+EDI Lens uses only the standard extension interface. In some editors the **Buy Pro** and **Show Documentation** links ask for confirmation before the browser opens; on Linux without a keyring the editor may keep the key only until it is closed (enter it again after a restart; no further activation is used), and where the editor cannot save the key at all the activation is released again (see above). Editors other than VS Code were not tested.
 
 ## Still stuck
 
-Open an issue at <https://github.com/ImadMuratspahic/edi-lens/issues> with the diagnostics block from **Report A Problem**, what you did, what you expected and, if possible, a small example file with invented data. Never post real business or patient data or a licence key.
+Open an issue at <https://github.com/small-steps-studio/edi-lens/issues> with the diagnostics block from **Report A Problem**, what you did, what you expected and, if possible, a small example file with invented data. Never post real business or patient data or a licence key.

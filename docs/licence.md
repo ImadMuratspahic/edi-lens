@@ -82,11 +82,11 @@ Only the licence check, only after you enter a key: the key, the label `VS Code 
 | "not active (expired, disabled or refunded)" | The server knows the key but has disabled it. | If you believe this is wrong, contact support. |
 | "maximum number of computers (3)" | All three activations are in use. | Run **Remove Licence From This Machine** on one of the other computers, or contact support for a lost computer. |
 | "could not be reached" | No connection to the licence server. | Check the internet connection, proxy and firewall (host `live.dodopayments.com`); nothing was changed. |
-| "could not be saved in the secret storage" | The editor has no credential store (Linux without a keyring, some containers). The activation was released again. | Start a keyring (GNOME Keyring, KWallet) or use an editor build with secret storage, then enter the key again. |
+| "could not be saved in the secret storage" | The editor could not save the key. On Linux without a keyring the editor may keep the key only until it is closed; where it cannot save it at all, the activation is released again and a licence that was stored before is kept. | Start a keyring (GNOME Keyring, KWallet) or use an editor build with secret storage, then enter the key again. If the editor kept the key only for the session, enter it again after a restart: no further activation is used. |
 | "offline mode ... until <date>" | The server is unreachable; the grace period runs. | Connect to the internet before that date. |
 | "could not be verified for more than 14 days" | The grace period is over. | Connect to the internet and run **Show Licence Status**. |
 | "no longer valid (revoked, expired or disabled)" | The stored key was rejected by the server. | Enter a different key or remove this one; contact support if you believe it should work. |
 
 ## Support
 
-<https://github.com/ImadMuratspahic/edi-lens/issues>. In the editor, **EDI Lens: Report A Problem** copies a diagnostics block (no file contents, no key) and opens that page. The full terms are in [LICENSE.txt](../LICENSE.txt) and [TERMS.md](../TERMS.md).
+<https://github.com/small-steps-studio/edi-lens/issues>. In the editor, **EDI Lens: Report A Problem** copies a diagnostics block (no file contents, no key) and opens that page. The full terms are in [LICENSE.txt](../LICENSE.txt) and [TERMS.md](../TERMS.md).
