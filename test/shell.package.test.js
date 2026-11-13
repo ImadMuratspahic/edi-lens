@@ -21,17 +21,17 @@ function listFiles(dir, out) {
 }
 
 test('manifest has the fields the marketplace needs', () => {
-  assert.equal(pkg.name, 'edi-lens');
-  assert.equal(pkg.displayName, 'EDI Lens');
-  assert.equal(pkg.publisher, 'ImadMuratspahic');
-  assert.equal(pkg.version, '0.2.0');
+  assert.equal(pkg.name, 'edi-lens-viewer');
+  assert.equal(pkg.displayName, 'EDI Lens - EDIFACT, X12 and HL7 Viewer');
+  assert.equal(pkg.publisher, 'SmallStepsStudio');
+  assert.equal(pkg.version, '0.2.1');
   assert.equal(pkg.engines.vscode, '^1.82.0');
   assert.equal(pkg.license, 'SEE LICENSE IN LICENSE.txt');
   assert.equal(pkg.icon, 'media/icon.png');
   assert.equal(pkg.main, './src/extension.js');
-  assert.equal(pkg.homepage, 'https://imadmuratspahic-dev.carrd.co');
-  assert.equal(pkg.repository.url, 'https://github.com/ImadMuratspahic/edi-lens');
-  assert.equal(pkg.bugs.url, 'https://github.com/ImadMuratspahic/edi-lens/issues');
+  assert.equal(pkg.homepage, 'https://github.com/small-steps-studio/edi-lens#readme');
+  assert.equal(pkg.repository.url, 'https://github.com/small-steps-studio/edi-lens');
+  assert.equal(pkg.bugs.url, 'https://github.com/small-steps-studio/edi-lens/issues');
   assert.equal(pkg.pricing, 'Trial', 'the Marketplace pricing label is Free or Trial; Pro is sold outside the Marketplace');
   assert.deepEqual(pkg.categories, ['Formatters', 'Linters', 'Visualization', 'Other']);
   assert.ok(pkg.keywords.length >= 5 && pkg.keywords.length <= 30, 'vsce allows at most 30 keywords');
@@ -338,11 +338,13 @@ test('licence file and terms state what a buyer must know and promise nothing ab
     const t = read(f);
     assert.ok(!/money.back|no refunds|refund guarantee|refund within|full refund|refunded within/i.test(t), f + ' makes a refund promise or a refund claim');
   }
-  // The author's name in writing appears only in the legal texts (LICENSE.txt, TERMS.md); elsewhere
-  // only the publisher id inside the Marketplace and repository addresses.
-  for (const f of everywhere.filter((x) => x !== 'LICENSE.txt' && x !== 'TERMS.md')) {
-    const stripped = read(f).replace(/github\.com\/ImadMuratspahic/g, '').replace(/ImadMuratspahic\.edi-lens/g, '').replace(/imadmuratspahic-dev\.carrd\.co/g, '').replace(/publisher ImadMuratspahic/g, '');
-    assert.ok(!new RegExp(pkg.publisher.slice(4), 'i').test(stripped), f + ' spells out the author name');
+  // The publisher is Small Steps Studio everywhere: no personal name, no personal site, no
+  // personal mail address in any file of the extension or of its repository.
+  assert.match(read('LICENSE.txt'), /Copyright \(c\) 2026 Small Steps Studio/);
+  assert.match(read('LICENSE.txt'), /author of EDI Lens, Small Steps Studio/);
+  const personal = new RegExp(['ima' + 'd', 'murat' + 'spahic', 'car' + 'rd', 'gma' + 'il'].join('|'), 'i');
+  for (const f of everywhere.concat(['package.json'])) {
+    assert.ok(!personal.test(read(f)), f + ' names a person, a personal site or a personal mail address');
   }
 });
 
@@ -397,7 +399,7 @@ test('the continuous integration workflow covers three operating systems and two
 
 test('the unit tests need no file that is kept out of the public repository', () => {
   const ignored = read('.gitignore').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
-  for (const entry of ['scripts/', 'test/smoke/', 'test/private.*.test.js', 'PRE-RELEASE-CHECKLIST.md', 'RELEASE-NOTES-*.md', 'QA-*.md', 'STATUS*', '*NOTES*.md', '*-SPEC.md', 'demo/', '*.vsix']) {
+  for (const entry of ['scripts/', 'test/smoke/', 'test/private.*.test.js', 'PRE-RELEASE-CHECKLIST.md', 'RELEASE-NOTES-*.md', 'QA-*.md', '/STATUS*', '*NOTES*.md', '*-SPEC.md', 'demo/', '*.vsix']) {
     assert.ok(ignored.includes(entry), entry + ' is missing from .gitignore');
   }
   const publicTests = fs.readdirSync(__dirname).filter((f) => /\.js$/.test(f) && !/^private\./.test(f)).map((f) => 'test/' + f)

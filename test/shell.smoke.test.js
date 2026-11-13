@@ -644,9 +644,9 @@ test('Open Sample commands open valid untitled files in the right language and t
     const original = app.vscode.commands.executeCommand;
     app.vscode.commands.executeCommand = async (id, ...args) => { executed = [id, ...args]; return original(id, ...args); };
     await app.run('ediLens.openWalkthrough');
-    assert.deepEqual(executed, ['workbench.action.openWalkthrough', 'ImadMuratspahic.edi-lens#ediLens.gettingStarted', false]);
+    assert.deepEqual(executed, ['workbench.action.openWalkthrough', 'SmallStepsStudio.edi-lens-viewer#ediLens.gettingStarted', false]);
     await app.run('ediLens.showDocumentation');
-    assert.equal(String(app.state.opened), 'https://github.com/ImadMuratspahic/edi-lens#readme');
+    assert.equal(String(app.state.opened), 'https://github.com/small-steps-studio/edi-lens#readme');
   } finally { app.stop(); }
 });
 
@@ -668,7 +668,7 @@ test('Report A Problem copies a diagnostics block without file content, names or
     assert.ok(!block.includes(KEY) && !block.includes('0001'), 'no key and no key hint');
     assert.ok(!block.includes('secret-customer-file') && !block.includes('ACMEBUYER'), 'no file name and no file content');
     assert.ok(!block.includes(require('node:os').hostname()) || require('node:os').hostname().length < 3, 'no host name');
-    assert.equal(String(app.state.opened), 'https://github.com/ImadMuratspahic/edi-lens/issues');
+    assert.equal(String(app.state.opened), 'https://github.com/small-steps-studio/edi-lens/issues');
     assert.match(app.state.infoMessages.at(-1).text, /copied to the clipboard/);
     assert.match(app.state.infoMessages.at(-1).text, /no file contents or names/);
   } finally { app.stop(); }

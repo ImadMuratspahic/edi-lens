@@ -180,6 +180,42 @@ test('anonymise message: asks for a seed, opens a copy, leaves the original alon
   } finally { app.stop(); }
 });
 
+test('anonymise: the seed box and the report say what a seed repeats, and that other files can move a replacement', async () => {
+  const anon = require('../src/pro/anonymise');
+  const app = await licensed({ text: H, language: 'hl7', name: 'adt.hl7' });
+  try {
+    app.state.inputAnswer = 'my seed';
+    app.state.infoAnswer = (text, buttons) => (buttons.includes('Show Report') ? 'Show Report' : undefined);
+    await app.run('anonymise');
+    const box = app.state.inputBoxes.at(-1);
+    assert.equal(box.title, 'EDI Lens anonymise: seed (optional). The same seed, files and rules give the same replacements.');
+    assert.equal(box.placeHolder, 'Leave empty for a random seed that is used for this run only');
+    const seeded = app.state.openedDocuments.at(-1);
+    assert.equal(seeded.languageId, 'markdown');
+    assert.match(seeded.getText(), /^A seed was given: a later run with the same seed, files and rules gives the same replacements\. With other files, a value whose replacement had to move to stay distinct can get another one\.$/m);
+    app.state.inputAnswer = '';
+    await app.run('anonymise');
+    assert.match(app.state.openedDocuments.at(-1).getText(), /^No seed was given: a random seed was used for this run only, so the replacements cannot be reproduced\.$/m);
+    // The absolute wording of earlier builds is gone from the box and from both reports.
+    const shown = app.state.inputBoxes.map((b) => b.title).concat(app.state.openedDocuments.map((d) => d.getText())).join('\n');
+    assert.ok(!/in every run|produces the same replacements in a later run/.test(shown), shown.slice(0, 300));
+  } finally { app.stop(); }
+  // What the wording says is what happens. The same seed with the same values in the same order
+  // gives the same replacements. When another value takes the first replacement of 042 before it,
+  // 042 has to move to stay distinct and gets another one.
+  const CTX = { format: 'x12', release: '', escape: '', fixedWidth: false };
+  const alone = anon.createRewriter('seed-A').rewrite('pseudonym', '042', CTX).value;
+  assert.equal(anon.createRewriter('seed-A').rewrite('pseudonym', '042', CTX).value, alone);
+  const other = anon.createRewriter('seed-A');
+  assert.equal(other.rewrite('pseudonym', '613', CTX).value, alone, 'the example needs 613 to take the first replacement of 042');
+  const moved = other.rewrite('pseudonym', '042', CTX).value;
+  assert.notEqual(moved, alone);
+  assert.ok(other.distinct());
+  const again = anon.createRewriter('seed-A');
+  again.rewrite('pseudonym', '613', CTX);
+  assert.equal(again.rewrite('pseudonym', '042', CTX).value, moved, 'the same values in the same order give the same replacements again');
+});
+
 test('anonymise message: the rule file and the profile setting decide what is replaced', async () => {
   const app = await licensed({ text: H, language: 'hl7', name: 'adt.hl7', config: { 'anonymise.profiles': [] } });
   try {

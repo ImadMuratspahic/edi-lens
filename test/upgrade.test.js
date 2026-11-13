@@ -76,8 +76,8 @@ test('upgrade: every command id and title of 0.1.1 still exists unchanged', () =
   const byId = Object.fromEntries(pkg.contributes.commands.map((c) => [c.command, c.title]));
   for (const id of COMMANDS_011) assert.ok(byId['ediLens.' + id], 'command ediLens.' + id + ' was removed');
   for (const [id, title] of Object.entries(TITLES_011)) assert.equal(byId['ediLens.' + id], title);
-  assert.equal(pkg.name, 'edi-lens');
-  assert.equal(pkg.publisher, 'ImadMuratspahic');
+  assert.equal(pkg.name, 'edi-lens-viewer');
+  assert.equal(pkg.publisher, 'SmallStepsStudio');
   assert.deepEqual(pkg.contributes.languages.map((l) => l.id), ['edifact', 'x12', 'hl7']);
   assert.equal(pkg.contributes.views.ediLens[0].id, 'ediLens.outline');
   assert.equal(pkg.engines.vscode, '^1.82.0', 'the minimum editor version did not rise');
@@ -251,5 +251,21 @@ test('upgrade: a key that 0.1.x stored for the test environment does not unlock 
     assert.equal(app.state.openedDocuments.length, 0);
     assert.match(app.state.infoMessages.at(-1).text, /is an EDI Lens Pro feature/);
     assert.equal(app.calls.length, 0, 'the test host is never contacted');
+  } finally { app.stop(); }
+});
+
+test('Remove Licence looks at what is stored and sends no request until the user has confirmed (also when the last check is older than a day)', async () => {
+  const app = await boot((ctx) => licensed011(ctx, 3));
+  try {
+    await new Promise((r) => setImmediate(r));
+    app.calls.length = 0;
+    app.state.warnAnswer = undefined; // the confirmation is declined
+    await app.run('ediLens.removeLicence');
+    assert.deepEqual(app.calls, [], 'nothing was sent before or after the declined confirmation');
+    assert.equal(await app.ctx.secrets.get('licence.key.live'), KEY, 'the licence stays');
+    app.state.warnAnswer = 'Remove Licence';
+    await app.run('ediLens.removeLicence');
+    assert.deepEqual(app.calls.map((c) => c.path), ['/licenses/deactivate'], 'only the release of the activation is sent, after the confirmation');
+    assert.equal(await app.ctx.secrets.get('licence.key.live'), undefined);
   } finally { app.stop(); }
 });

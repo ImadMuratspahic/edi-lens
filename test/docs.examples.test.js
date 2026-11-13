@@ -214,7 +214,7 @@ test('docs: prices, licence types and the procurement facts agree between README
   assert.equal(config.businessPriceText, 'USD 59 per user');
   assert.equal(config.activationLimit, 3);
   const it = readme.split('## For IT and procurement')[1].split('\n## ')[0];
-  for (const fact of ['publisher ImadMuratspahic', '`ImadMuratspahic.edi-lens`', '`live.dodopayments.com`', 'No telemetry', config.repositoryUrl, 'PRIVACY.md', 'purchase orders', 'questionnaires', 'three computers']) assert.ok(it.includes(fact), 'the IT and procurement section lacks: ' + fact);
+  for (const fact of ['publisher Small Steps Studio', '`SmallStepsStudio.edi-lens-viewer`', '`live.dodopayments.com`', 'No telemetry', config.repositoryUrl, 'PRIVACY.md', 'purchase orders', 'questionnaires', 'three computers']) assert.ok(it.includes(fact), 'the IT and procurement section lacks: ' + fact);
   assert.ok(it.includes(config.checkoutBaseLive + config.products.live.business + '?quantity=N'));
   assert.equal(new URL(config.apiBaseLive).host, 'live.dodopayments.com');
   assert.match(readme, /Can we pay by purchase order[\s\S]{0,400}not offered/);

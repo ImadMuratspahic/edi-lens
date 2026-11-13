@@ -228,7 +228,8 @@ test('anonymise: both dates of a range move by the same number of days', () => {
   assert.equal(anon.shiftDate('20240101-20240131', -10), '20231222-20240121');
   assert.equal(anon.shiftDate('20240229-20240301', -366), '20230228-20230301');
   assert.equal(anon.shiftDate('20240101-20241340', -10), null, 'a range with an impossible second date is no date');
-  assert.equal(anon.shiftDate('20240101-2024013', -10), '20231222-2024013', 'anything else after the date is kept as before');
+  assert.equal(anon.shiftDate('20240101-2024013', -10), null, 'a hyphen and seven digits start a range; a truncated second date is no date');
+  assert.equal(anon.shiftDate('20240101-0500', -10), '20231222-0500', 'a time zone offset is not a range');
   const text = SAMPLES.x12.text.replace('DTM*002*20240312~', 'DTP*472*RD8*20240101-20240131~');
   const rules12 = anon.compile({ profiles: [], rules: [{ format: 'x12', path: 'DTP-3', action: 'fake-date' }] }, [], { envelopeIds: 'keep' });
   const r = anon.anonymiseText(text, rules12, { seed: 'range' });
@@ -431,7 +432,7 @@ test('listing: what was tested is said as it is', () => {
   assert.match(changelog, /it has not run yet, so those platforms are untested for this version/);
   assert.ok(!/runs on Windows, macOS and Linux with Node 20 and 22/.test(changelog));
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
-  assert.match(readme, /this version was tested on Windows/);
+  assert.match(readme, /The automated tests of this version ran on Windows with a stand-in for the editor; the previous version, 0\.2\.0, was also run in VS Code 1\.146 on Windows\. Other platforms were not tested\./);
   assert.match(readme, /kept by the editor's own storage, which VS Code holds on your local computer/);
   assert.ok(!/so the key and the trial are stored there/.test(readme));
 });
