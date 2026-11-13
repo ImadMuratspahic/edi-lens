@@ -14,10 +14,12 @@
  *     message types, versions) are protected: a rule that points at one is skipped and counted.
  *   - The sender and receiver identifiers of the envelope (UNB, UNG, ISA, GS, MSH, BHS, FHS) are
  *     replaced like any identifier unless the caller asks to keep them, so that the first
- *     segment of a copy does not give away who the parties are. The same identifier in the body
- *     gets the same replacement.
- *   - The same original value always becomes the same replacement inside one run, and in every
- *     run that uses the same seed, so cross references stay consistent.
+ *     segment of a copy does not give away who the parties are. The same identifier replaced as
+ *     a pseudonym in the body gets the same replacement.
+ *   - The same original value always becomes the same replacement inside one run, so cross
+ *     references stay consistent. A later run with the same seed, files and rules gives the same
+ *     replacements; with other files, a value whose replacement had to move to stay distinct can
+ *     get another one.
  *   - The report holds counts only, never a value. The table of originals and replacements
  *     exists only in memory, in the result of the call.
  *
@@ -33,6 +35,13 @@ const FORMATS = ['edifact', 'x12', 'hl7'];
 const ACTIONS = ['mask', 'pseudonym', 'fake-name', 'fake-date', 'keep', 'blank'];
 const MAX_RULES = 2000;
 const MAX_MAP_ENTRIES = 100000;
+// Replacements that are kept so that two different values never get the same one (see
+// createRewriter). Beyond this many distinct values the guarantee ends and the report says so.
+const MAX_CLAIMS = 500000;
+// Candidates tried one after the other for a value whose first replacement was already taken
+// (each from a fresh keyed hash), then the number of steps of the exhaustive search that follows.
+const RANDOM_ATTEMPTS = 64;
+const MAX_PROBE_STEPS = 2000000;
 
 const CODES = Object.freeze({
   rulesInvalid: 'ANON-RULES-INVALID',
@@ -101,7 +110,8 @@ const PROFILES = Object.freeze({
 
 /**
  * The sender and receiver identifiers of the envelope, per format. They are replaced as
- * pseudonyms (so that the same identifier in the body matches) unless envelope ids are kept.
+ * pseudonyms (so that they match the same identifier where a rule replaces it as a pseudonym in
+ * the body) unless envelope ids are kept.
  */
 const ENVELOPE_IDS = Object.freeze({
   edifact: ['UNB-2.1', 'UNB-2.3', 'UNB-3.1', 'UNB-3.3', 'UNG-2.1', 'UNG-3.1'],
@@ -354,23 +364,70 @@ function shiftDate(value, days) {
   const head = width === 8
     ? pad(ny, 4) + pad(date.getUTCMonth() + 1, 2) + pad(date.getUTCDate(), 2)
     : pad(ny % 100, 2) + pad(date.getUTCMonth() + 1, 2) + pad(date.getUTCDate(), 2);
-  // A range of two dates (CCYYMMDD-CCYYMMDD): the second date moves by the same number of days.
+  // A range of two dates or of two date-times (CCYYMMDD-CCYYMMDD, CCYYMMDDHHMM-CCYYMMDDHHMM): the
+  // second date moves by the same number of days and its time digits are kept. A hyphen followed
+  // by at least seven digits starts a range; anything shorter is a time zone offset (-0500) and
+  // stays as it is. A range whose second part is not a real date of the same layout as the first
+  // is not a date at all (null).
   const rest = value.slice(width);
-  if (width === 8 && /^-\d{8}$/.test(rest)) {
-    const second = shiftDate(rest.slice(1), days);
-    return second === null ? null : head + '-' + second;
+  if (width === 8) {
+    const range = /^(\d*)-(\d{7}[\s\S]*)$/.exec(rest);
+    if (range) {
+      const second = range[2];
+      if (!/^\d{8}\d*$/.test(second) || second.length - 8 !== range[1].length) return null;
+      const movedSecond = shiftDate(second.slice(0, 8), days);
+      return movedSecond === null ? null : head + range[1] + '-' + movedSecond + second.slice(8);
+    }
   }
   return head + rest;
 }
 
 /**
- * Creates the value rewriter of one run. `seed` is the user's seed; without one a random seed is
- * drawn that exists only for this run. The rewriter keeps the table of originals and replacements
- * in memory (at most 100,000 entries; values beyond that are still rewritten the same way).
+ * Counts the replaceable characters of a replacement up by one, like the digits of a number
+ * (digits 0-9, letters a-z or A-Z in the case they have): the next candidate in a fixed order.
+ * Characters that belong to the syntax (`fixed`) and all other characters stay. After the last
+ * candidate the count wraps around to the first.
+ */
+function bump(text, fixed) {
+  const chars = text.split('');
+  for (let i = chars.length - 1; i >= 0; i--) {
+    if (fixed && fixed[i]) continue;
+    const c = chars[i];
+    if (c === '9') { chars[i] = '0'; continue; }
+    if (c === 'z') { chars[i] = 'a'; continue; }
+    if (c === 'Z') { chars[i] = 'A'; continue; }
+    if ((c >= '0' && c < '9') || (c >= 'a' && c < 'z') || (c >= 'A' && c < 'Z')) {
+      chars[i] = String.fromCharCode(c.charCodeAt(0) + 1);
+      return chars.join('');
+    }
+  }
+  return chars.join('');
+}
+
+/**
+ * Creates the value rewriter of one run. `seed` is the user's seed; without one a random key is
+ * drawn (crypto.randomBytes(32)) that exists only for this run. Every replacement comes from
+ * HMAC-SHA256 keyed with the seed or with that random key, so the same seed, the same values in
+ * the same order and the same extension version give the same replacements, and anybody who
+ * holds the seed can recompute them. The rewriter keeps the table of originals and replacements
+ * in memory (at most 100,000 entries in the table that can be exported; values beyond that are
+ * still rewritten the same way).
+ *
+ * Two different values never share a replacement within a run (pseudonym and fake-name
+ * replacements alike): the replacements handed out are remembered, and a value whose first
+ * replacement is already taken gets the next one from a fresh keyed hash, then the next free one
+ * in a fixed order. Such a value can therefore get another replacement in a run over other
+ * values. Dates cannot collide: they all move by the same number of days. `distinct()`
+ * says whether the guarantee held for the whole run. It ends only when more than 500,000
+ * distinct values were replaced, or when a shape has fewer possible replacements than values
+ * (ten one-digit numbers that are already all taken).
  */
 function createRewriter(seed) {
   const key = typeof seed === 'string' && seed !== '' ? seed : crypto.randomBytes(32).toString('hex');
   const map = new Map();
+  const claims = new Map();
+  let claimsFull = false;
+  let collisions = 0;
   let overflow = false;
   const offsetBytes = crypto.createHmac('sha256', key).update('date-offset').digest();
   const dateShift = -(1 + (offsetBytes.readUInt32BE(0) % 365));
@@ -420,14 +477,46 @@ function createRewriter(seed) {
     const known = map.get(id);
     if (known) return { value: known.replacement, note: note };
     let out = value;
-    if (hasReplaceable(value, fixed)) {
-      for (let attempt = 0; attempt < 4; attempt++) {
-        out = scramble(value, fixed, byteStream(key, kind + ':' + attempt, value), kind === 'fake-name');
-        if (out !== value) break;
-      }
-    }
+    if (hasReplaceable(value, fixed)) out = pick(kind, value, fixed, id);
     remember(kind, value, out);
     return { value: out, note: note };
+  }
+
+  // Claims a replacement for the value with this id. True when it is free (it is then reserved) or
+  // already reserved for this very value; false when another value has it.
+  function claim(replacement, id) {
+    const owner = claims.get(replacement);
+    if (owner === id) return true;
+    if (owner !== undefined) return false;
+    if (claims.size >= MAX_CLAIMS) { claimsFull = true; return true; }
+    claims.set(replacement, id);
+    return true;
+  }
+
+  // The replacement of a value: the first of its keyed candidates that differs from the value and
+  // that no other value has. Deterministic: the same value finds the same one again.
+  function pick(kind, value, fixed, id) {
+    const nameLike = kind === 'fake-name';
+    let first = null;
+    for (let attempt = 0; attempt < RANDOM_ATTEMPTS; attempt++) {
+      const candidate = scramble(value, fixed, byteStream(key, kind + ':' + attempt, value), nameLike);
+      if (candidate === value) continue;
+      if (first === null) first = candidate;
+      if (claim(candidate, id)) return candidate;
+    }
+    // Nearly every candidate of this shape is taken: walk through them in a fixed order.
+    const start = first === null ? value : first;
+    let candidate = start;
+    for (let step = 0; step < MAX_PROBE_STEPS; step++) {
+      candidate = bump(candidate, fixed);
+      if (candidate === start) break;
+      if (candidate !== value && claim(candidate, id)) return candidate;
+    }
+    // Every replacement of this shape is taken. Keeping the value as it is still keeps the
+    // replacements apart; only when that is taken as well do two values have to share one.
+    if (claim(value, id)) return value;
+    collisions++;
+    return first === null ? value : first;
   }
 
   return {
@@ -436,6 +525,9 @@ function createRewriter(seed) {
     entries: function () { return Array.from(map.values()); },
     size: function () { return map.size; },
     overflowed: function () { return overflow; },
+    // True while no two different values share a replacement in this run (see createRewriter).
+    distinct: function () { return !claimsFull && collisions === 0; },
+    collisions: function () { return collisions; },
   };
 }
 
@@ -554,7 +646,7 @@ function toReport(entries, options) {
   const o = options || {};
   const lines = ['# ' + md(o.title || 'EDI Lens anonymise report'), ''];
   lines.push(o.seeded
-    ? 'A seed was given: the same seed produces the same replacements in a later run.'
+    ? 'A seed was given: a later run with the same seed, files and rules gives the same replacements. With other files, a value whose replacement had to move to stay distinct can get another one.'
     : 'No seed was given: a random seed was used for this run only, so the replacements cannot be reproduced.');
   lines.push('This report lists counts only. It contains no value from the files.');
   lines.push('');
@@ -576,6 +668,8 @@ function toReport(entries, options) {
   lines.push('| Dates that were not recognised and were replaced like an identifier | ' + total.datesNotRecognised + ' |');
   if (typeof o.mapSize === 'number') lines.push('| Distinct original values in the replacement table (memory only) | ' + o.mapSize + ' |');
   lines.push('');
+  if (o.distinct === true) lines.push('Different original values received different replacements throughout this run.', '');
+  else if (o.distinct === false) lines.push('Warning: in this run two different original values may have received the same replacement (more distinct values than the extension can keep apart, or a kind of value with too few possible replacements). Do not rely on replacements being unique.', '');
   done.forEach(function (e) {
     lines.push('## ' + md(e.label), '');
     lines.push((FORMAT_NAMES[e.report.format] || e.report.format) + ', ' + e.report.segments + ' segments, ' + e.report.changed + ' values replaced.', '');

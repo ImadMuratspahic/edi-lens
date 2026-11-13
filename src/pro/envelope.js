@@ -569,12 +569,15 @@ function acknowledge(text, options) {
   if (!result.ok) return result;
   // The acknowledgement is built from the header of the source. When that header is damaged the
   // result would carry the damage, so it is checked before it is handed out.
-  const broken = validate(parse(result.text), { includeParseIssues: true, maxIssues: 5 }).filter(function (i) { return i.severity === 'error'; });
+  const broken = validate(parse(result.text), { includeParseIssues: true, maxIssues: 5 }).filter(function (i) { return i.severity === 'error' || i.severity === 'warning'; });
   if (broken.length) {
     return fail(CODES.badEnvelope, 'The header of the source (' + (s.format === 'x12' ? 'ISA' : s.format === 'edifact' ? 'UNB' : 'MSH') + ') is damaged, so no valid acknowledgement can be written for it. Run "EDI Lens: Validate Current File" and repair the header first.');
   }
   return result;
 }
+
+/** What MSH-12 of an acknowledgement may hold: a version number such as 2.5 or 2.5.1. */
+const HL7_VERSION = /^\d{1,2}\.\d{1,2}(\.\d{1,2})?$/;
 
 /** The codes a 997 or 999 gives for a faulty transaction set (AK5/IK5) and group (AK9). */
 const SET_FAULT = { missing: '2', control: '3', count: '4' };
@@ -598,8 +601,18 @@ function buildAcknowledgement(text, s, start, o) {
       const c = enc.charAt(0) || '^';
       const trigger = value(h, 9, 2);
       const type = trigger ? 'ACK' + c + trigger + c + 'ACK' : 'ACK';
+      // The version is quoted from MSH-12 of the source. An empty field gets the default; a field
+      // that holds something else than a version number (a damaged header, for example one that
+      // ran into the next line) cannot be quoted in a valid acknowledgement.
+      let version = '2.5';
+      if (rawElement(h, 12).trim() !== '') {
+        version = value(h, 12, 1);
+        if (!HL7_VERSION.test(version)) {
+          return fail(CODES.badEnvelope, 'MSH-12 (version id) of the source does not hold a version number such as 2.5, so no valid acknowledgement can be written for it. Run "EDI Lens: Validate Current File" and repair the header first.');
+        }
+      }
       const ok = tally(u.sound);
-      out.push(['MSH', enc, rawElement(h, 5), rawElement(h, 6), rawElement(h, 3), rawElement(h, 4), t.ccyymmdd + t.hhmm + t.ss, '', type, 'ACK' + pad(n, 9), 'T', rawElement(h, 12) || '2.5'].join(f) + s.eol);
+      out.push(['MSH', enc, rawElement(h, 5), rawElement(h, 6), rawElement(h, 3), rawElement(h, 4), t.ccyymmdd + t.hhmm + t.ss, '', type, 'ACK' + pad(n, 9), 'T', version].join(f) + s.eol);
       out.push(['MSA', ok ? 'AA' : 'AE', u.ref, 'TEST ACKNOWLEDGEMENT'].join(f) + s.eol);
       n++;
     }
