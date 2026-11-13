@@ -81,6 +81,13 @@ function activationFailureText(result) {
       return 'The licence server did not say which product this key belongs to, so the key was not accepted. ' + released + ' Please try again in a few minutes; if it keeps failing, contact ' + config.supportContact() + '.';
     case 'storage':
       if (result.kept) return 'The key is valid, but the editor could not save the licence state on this computer, so nothing was changed. On Linux a keyring such as GNOME Keyring or KWallet must be running; then try again.';
+      if (result.hadPrevious) {
+        return 'The key could not be saved in the secret storage of this editor (no credential store is available). ' + released.replace(/[Nn]othing was stored/, 'The new key was not stored').replace('and The new key', 'and the new key') + ' ' +
+          (result.previousKept
+            ? 'Your previous licence was kept and is still active on this computer.'
+            : 'Your previous licence could not be confirmed on this computer afterwards; run "' + PRODUCT + ': Show Licence Status" to see what is stored.') +
+          ' On Linux a keyring such as GNOME Keyring or KWallet must be running; then try again.';
+      }
       return 'The key could not be saved in the secret storage of this editor (no credential store is available). ' + released + ' Pro stays off on this computer. On Linux a keyring such as GNOME Keyring or KWallet must be running; then try again.';
     default:
       return 'The licence check failed' + (result.status ? ' (HTTP ' + result.status + ')' : '') + '. Please try again in a few minutes; if it keeps failing, contact ' + config.supportContact() + '.';
@@ -159,7 +166,9 @@ function activatedText(licenceType, result) {
   }
   const replaced = !r.replaced ? '' : r.previousReleased
     ? ' The activation of the key that was stored before was released.'
-    : ' The activation of the key that was stored before could not be released (the licence server did not confirm it); it may still count against that key\'s limit of ' + config.activationLimit + '. If that key is refused elsewhere, contact ' + config.supportContact() + '.';
+    : r.previousKeyLost
+      ? ' The key that was stored before is no longer available on this computer (the editor did not keep it), so its activation could not be released from here; it may still count against that key\'s limit of ' + config.activationLimit + '. If that key is refused elsewhere, contact ' + config.supportContact() + '.'
+      : ' The activation of the key that was stored before could not be released (the licence server did not confirm it); it may still count against that key\'s limit of ' + config.activationLimit + '. If that key is refused elsewhere, contact ' + config.supportContact() + '.';
   return PRODUCT + ' Pro is now active on this computer' + (kind ? ' (' + kind + ')' : '') + '. Thank you. The key is kept in the editor\'s secret storage; "' + PRODUCT + ': Remove Licence From This Machine" frees the activation again' +
     (licenceType === 'business' ? ', for example to pass the key on to a colleague.' : '.') + replaced;
 }

@@ -223,10 +223,12 @@ function createLicence(options) {
     let oldKey;
     let oldInstance;
     let oldProduct;
+    let oldChecks = {};
     try {
       oldKey = await secrets.get(n.key);
       oldInstance = state.get(n.instance);
       oldProduct = state.get(n.product);
+      oldChecks = { checkedAt: state.get(n.checkedAt), checkedValid: state.get(n.checkedValid), lastGood: state.get(n.lastGood) };
     } catch (e) {
       oldKey = undefined;
       oldInstance = undefined;
@@ -282,20 +284,47 @@ function createLicence(options) {
         await state.update(n.checkedValid, true);
         await state.update(n.lastGood, t);
       } catch (e) {
-        // Nothing usable can be kept on this machine. Undo what may have been written and give
-        // the activation back, so that a retry does not use up another seat of the key.
-        try { await secrets.delete(n.key); } catch (e2) { /* nothing stored */ }
-        try { await state.update(n.instance, undefined); } catch (e2) { /* nothing stored */ }
-        try { await state.update(n.product, undefined); } catch (e2) { /* nothing stored */ }
-        return { ok: false, reason: 'storage', released: await release() };
+        // The new licence could not be kept on this machine. Give the new activation back, so
+        // that a retry does not use up another seat of the key. A licence that was stored before
+        // is never lost to this: what was written is put back (best effort), and only when the
+        // stored values read back as they were is the old licence reported as kept. Values that
+        // did not exist before are removed again.
+        const hadPrevious = !!(oldKey && oldInstance);
+        const attempt = async function (fn) { try { await fn(); } catch (e2) { /* read back below */ } };
+        await attempt(function () { return oldKey ? secrets.store(n.key, oldKey) : secrets.delete(n.key); });
+        await attempt(function () { return state.update(n.instance, oldInstance); });
+        await attempt(function () { return state.update(n.product, oldProduct); });
+        await attempt(function () { return state.update(n.checkedAt, oldChecks.checkedAt); });
+        await attempt(function () { return state.update(n.checkedValid, oldChecks.checkedValid); });
+        await attempt(function () { return state.update(n.lastGood, oldChecks.lastGood); });
+        let previousKept = false;
+        if (hadPrevious) {
+          try {
+            previousKept = (await secrets.get(n.key)) === oldKey && state.get(n.instance) === oldInstance && state.get(n.product) === oldProduct;
+          } catch (e2) {
+            previousKept = false;
+          }
+        }
+        const failure = { ok: false, reason: 'storage', released: await release() };
+        if (hadPrevious) { failure.hadPrevious = true; failure.previousKept = previousKept; }
+        return failure;
       }
       retryNotBefore = 0;
       const result = { ok: true, licenceType: licenceType };
-      // The new licence is stored; now give back the seat of the activation it replaced.
+      // The new licence is stored; now give back the seat of the activation it replaced. The old
+      // activation can only be released together with the key it was made for. When that key is
+      // no longer stored (an editor that lost its secrets), the entered key is not the one the
+      // activation belongs to, so nothing is sent: a release with the wrong key would only look
+      // like a success.
       if (oldInstance && oldInstance !== r.data.id) {
-        const d = await post('/licenses/deactivate', { license_key: oldKey || key, license_key_instance_id: oldInstance });
         result.replaced = true;
-        result.previousReleased = d.status === 200 || d.status === 201 || d.status === 204;
+        if (oldKey) {
+          const d = await post('/licenses/deactivate', { license_key: oldKey, license_key_instance_id: oldInstance });
+          result.previousReleased = d.status === 200 || d.status === 201 || d.status === 204;
+        } else {
+          result.previousReleased = false;
+          result.previousKeyLost = true;
+        }
       }
       return result;
     }
@@ -380,6 +409,12 @@ function createLicence(options) {
     return Math.max(now(), asTime(state.get(TRIAL_KEYS.lastSeenAt)));
   }
 
+  // True when the start and the last use of the trial are both more than a day ahead of the clock.
+  function recordFromTheFuture() {
+    const real = now();
+    return asTime(state.get(TRIAL_KEYS.startedAt)) > real + DAY_MS && asTime(state.get(TRIAL_KEYS.lastSeenAt)) > real + DAY_MS;
+  }
+
   /**
    * Returns the trial state without changing anything and without any network use:
    * `{ state, startedAt, endsAt, daysLeft, lastNoticeAt }` where state is 'unused' (never
@@ -389,6 +424,13 @@ function createLicence(options) {
     const startedAt = asTime(state.get(TRIAL_KEYS.startedAt));
     const lastNoticeAt = asTime(state.get(TRIAL_KEYS.lastNoticeAt));
     if (!startedAt) return { state: 'unused', startedAt: 0, endsAt: 0, daysLeft: config.trialDays, lastNoticeAt: lastNoticeAt };
+    // A record whose start and last use both lie more than a day ahead of the clock (a damaged or
+    // edited record, or a clock that was set far back) counts as a trial that has ended. It must
+    // not freeze the trial clock until that date arrives.
+    if (recordFromTheFuture()) {
+      const real = now();
+      return { state: 'expired', startedAt: real - TRIAL_MS, endsAt: real, daysLeft: 0, lastNoticeAt: lastNoticeAt, corrected: true };
+    }
     const t = trialNow();
     // A start time that lies in the future (a damaged or edited record) counts as "started now":
     // it can never give more than the trial length from today.
@@ -427,6 +469,12 @@ function createLicence(options) {
   async function touchTrial() {
     if (!asTime(state.get(TRIAL_KEYS.startedAt))) return;
     const t = now();
+    // A record from the future is written back as a trial that has ended, once. The last use is
+    // left as it is (it never moves backwards), so the trial stays ended whatever the clock does.
+    if (recordFromTheFuture()) {
+      try { await state.update(TRIAL_KEYS.startedAt, t - TRIAL_MS); } catch (e) { /* the state is read-only; the trial still counts as ended */ }
+      return;
+    }
     // Write a start time from the future back to now, once, so that the trial then runs out.
     if (asTime(state.get(TRIAL_KEYS.startedAt)) > trialNow() + DAY_MS) {
       try {
